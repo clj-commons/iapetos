@@ -51,6 +51,12 @@ The metrics can then be either exported using a textual representation:
 ;; ...
 ```
 
+Or pushed to the respective Prometheus gateway:
+
+```clojure
+(export/push! registry {:url "push-gateway:12345"})
+```
+
 ### More
 
 Soon.
