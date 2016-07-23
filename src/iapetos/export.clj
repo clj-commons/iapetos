@@ -1,4 +1,5 @@
 (ns iapetos.export
+  (:require [iapetos.registry :as registry])
   (:import [io.prometheus.client CollectorRegistry]
            [io.prometheus.client.exporter
             PushGateway]
@@ -8,22 +9,24 @@
 ;; ## TextFormat (v0.0.4)
 
 (defn text-format
-  [{:keys [^CollectorRegistry registry]}]
+  [registry]
   (with-open [out (java.io.StringWriter.)]
     (TextFormat/write004
       out
-      (.metricFamilySamples registry))
+      (.metricFamilySamples ^CollectorRegistry (registry/raw registry)))
     (str out)))
 
 ;; ## Push Gateway
 
 (defn push!
-  [{:keys [registry-name registry]}
-   {:keys [gateway
-           url
-           job
-           grouping-key]
-    :or {job          registry-name
+  [registry
+   {:keys [gateway job grouping-key]
+    :or {job          (registry/name registry)
          grouping-key {}}}]
-  (doto ^PushGateway (or gateway (PushGateway. url))
-    (.pushAdd registry job grouping-key)))
+  (doto ^PushGateway (if (instance? PushGateway gateway)
+                       gateway
+                       (PushGateway. ^String gateway))
+    (.pushAdd
+      ^CollectorRegistry (registry/raw registry)
+      job
+      grouping-key)))

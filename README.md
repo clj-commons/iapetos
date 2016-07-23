@@ -14,15 +14,15 @@ Don't. This is mostly me exploring Prometheus.
 Metrics have to be declared on a collector registry before being used:
 
 ```clojure
-(require '[iapetos.core :as prometheus]
-         '[iapetos.hotspot :as hotspot])
+(require '[iapetos.core :as prometheus])
 
 (defonce registry
-  (-> (prometheus/collector-registry "my_application")
-      (prometheus/histogram "duration_seconds")
-      (prometheus/gauge     "last_success_unixtime" {:lazy? true})
-      (prometheus/gauge     "active_users_total"    {:lazy? true})
-      (prometheus/counter   "runs_total")))
+  (-> (prometheus/collector-registry)
+      (prometheus/register
+        (prometheus/histogram :app/duration-seconds)
+        (prometheus/gauge     :app/last-success-unixtime {:lazy? true})
+        (prometheus/gauge     :app/active-users-total    {:lazy? true})
+        (prometheus/counter   :app/runs-total))))
 ```
 
 Now, you can write an instrumented function using some of iapetos' helper macros
@@ -31,11 +31,12 @@ or by operating directly on the collectors:
 ```clojure
 (defn run
   []
-  (prometheus/inc registry "runs_total")
-  (prometheus/with-duration-histogram [registry "duration_seconds"]
-    (prometheus/with-success-timestamp [registry "last_success_unixtime"]
+  (prometheus/inc registry :app/runs-total)
+  (prometheus/with-duration (registry :app/duration-seconds)
+    (prometheus/with-success-timestamp (registry :app/last-success-unixtime)
       ...
-      (prometheus/set registry "active_users_total" (count-users!)))))
+      (prometheus/set registry :app/active-users-total (count-users!))
+      true)))
 ```
 
 The metrics can then be either exported using a textual representation:
@@ -43,18 +44,19 @@ The metrics can then be either exported using a textual representation:
 ```clojure
 (require '[iapetos.export :as export])
 (print (export/text-format registry))
-;; # HELP my_application_duration_seconds a histogram
-;; # TYPE my_application_duration_seconds histogram
-;; my_application_duration_seconds_bucket{le="0.005",} 0.0
-;; my_application_duration_seconds_bucket{le="0.01",} 0.0
-;; my_application_duration_seconds_bucket{le="0.025",} 0.0
+;; # HELP app_active_users_total a gauge metric.
+;; # TYPE app_active_users_total gauge
+;; app_active_users_total 10.0
+;; # HELP app_last_success_unixtime a gauge metric.
+;; # TYPE app_last_success_unixtime gauge
+;; app_last_success_unixtime 1.469284587819E9
 ;; ...
 ```
 
 Or pushed to the respective Prometheus gateway:
 
 ```clojure
-(export/push! registry {:url "push-gateway:12345"})
+(export/push! registry {:gateway "push-gateway:12345"})
 ```
 
 ### More

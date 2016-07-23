@@ -1,309 +1,382 @@
 (ns iapetos.core
-  (:refer-clojure :exclude [namespace inc dec set])
+  (:require [iapetos.collector :as collector]
+            [iapetos.metric :as metric]
+            [iapetos.operations :as ops]
+            [iapetos.registry :as registry])
+  (:refer-clojure :exclude [get inc dec set])
   (:import [io.prometheus.client
-            CollectorRegistry
-            Counter   Counter$Child
-            Histogram Histogram$Child Histogram$Timer
-            Gauge     Gauge$Child     Gauge$Timer
-            SimpleCollector$Builder]))
+            Counter
+            Counter$Child
+            Histogram
+            Histogram$Child
+            Histogram$Timer
+            Gauge
+            Gauge$Child
+            Gauge$Timer
+            Summary
+            Summary$Child]))
 
-;; ## Metric Map Coercion
-
-(defprotocol MetricMap
-  (to-metric-map [metric]))
-
-(extend-protocol MetricMap
-  clojure.lang.IPersistentMap
-  (to-metric-map [metric]
-    metric)
-
-  clojure.lang.IPersistentVector
-  (to-metric-map [[namespace name]]
-    {:namespace namespace
-     :name      name})
-
-  String
-  (to-metric-map [metric]
-    {:name metric}))
-
-(defn- ->metric
-  [metric-type metric]
-  (merge
-    {:labels []}
-    (to-metric-map metric)
-    {:type metric-type}))
-
-;; ## Registry Protocol
-
-(defprotocol ^:private PrometheusRegistry
-  (namespace  [registry metrics-namespace])
-  (subsystem  [registry metrics-subsystem])
-  (gauge*     [registry metric])
-  (counter*   [registry metric])
-  (histogram* [registry metric])
-  (collector* [registry metric]))
-
-;; ## Derived Functions
-
-(defn- collector-with-labels
-  [{:keys [labels object]} label-values]
-  [{:pre [(or (map? label-values) (nil? label-values))]}]
-  (->> labels
-       (map (comp str #(get label-values %)))
-       (into-array String)
-       (.labels @object)))
-
-(defn- maybe-collector
-  [registry metric]
-  (let [{:keys [type labels] :as metric} (to-metric-map metric)]
-    (when-let [collector (collector* registry metric)]
-      (let [actual-type (:type collector)]
-        (when (= actual-type type)
-          (collector-with-labels collector labels))))))
-
-(defn collector
-  [registry metric]
-  (let [{:keys [type labels] :as metric} (to-metric-map metric)
-        collector (collector* registry metric)
-        actual-type (:type collector)]
-    (assert collector (str "no such collector: " (pr-str metric)))
-    (assert (= actual-type type)
-            (format "collector type mismatch (%s != %s): %s"
-                    actual-type
-                    type
-                    (pr-str metric)))
-    (collector-with-labels collector labels)))
-
-(defn counter
-  [registry name
-   & [{:keys [namespace
-              description
-              subsystem
-              labels
-              lazy?]
-       :or {description "a counter"}
-       :as options}]]
-  (->> (merge
-         {:description description}
-         options
-         (to-metric-map name))
-       (counter* registry)))
-
-(defn gauge
-  [registry name
-   & [{:keys [namespace
-              description
-              subsystem
-              labels
-              lazy?]
-       :or {description "a gauge"}
-       :as options}]]
-  (->> (merge
-         {:description description}
-         options
-         (to-metric-map name))
-       (gauge* registry)))
-
-(defn histogram
-  [registry name
-   & [{:keys [namespace
-              description
-              buckets
-              subsystem
-              labels
-              lazy?]
-       :or {description "a histogram"}
-       :as options}]]
-  (->> (merge
-         {:description description}
-         options
-         (to-metric-map name))
-       (histogram* registry)))
-
-;; ## Registry Implementation
-
-;; ### Generic Initialization
-
-(defn- initialize-collector
-  [collector-type
-   collector-constructor
-   {:keys [^CollectorRegistry registry
-           ^String metrics-namespace
-           ^String metrics-subsystem]}
-   {:keys [^String name
-           ^String namespace
-           ^String description
-           labels
-           lazy?]
-    :or {lazy? false}}]
-  (let [namespace (or namespace metrics-namespace)
-        labels    (vec labels)
-        object (delay
-                 (-> ^SimpleCollector$Builder (collector-constructor)
-                     (.name name)
-                     (.help description)
-                     (.labelNames (into-array String labels))
-                     (cond->
-                       namespace         (.namespace metrics-namespace)
-                       metrics-subsystem (.subsystem metrics-subsystem))
-                     (.register registry)))]
-    (when-not lazy?
-      @object)
-    {:type        collector-type
-     :namespace   namespace
-     :name        name
-     :description description
-     :labels      labels
-     :object      object}))
-
-;; ### Collectors
-
-(defn- build-gauge
-  [registry options]
-  (initialize-collector :gauge #(Gauge/build) registry options))
-
-(defn- build-counter
-  [registry options]
-  (initialize-collector :counter #(Counter/build) registry options))
-
-(defn- build-histogram
-  [registry {:keys [buckets]
-             :as options}]
-  (let [constructor #(cond-> (Histogram/build)
-                       (seq buckets) (.buckets (double-array buckets)))]
-    (initialize-collector :histogram constructor registry options)))
-
-;; ### Registry
-
-(defn- register
-  [registry {:keys [namespace name] :as metric}]
-  (assoc-in registry [:metrics namespace name] metric))
-
-(defrecord IapetosRegistry [registry
-                            registry-name
-                            metrics
-                            metrics-namespace
-                            metrics-subsystem]
-  PrometheusRegistry
-  (namespace [this metrics-namespace]
-    (assoc this :metrics-namespace metrics-namespace))
-  (subsystem [this metrics-subsystem]
-    (assoc this :metrics-subsystem metrics-subsystem))
-  (gauge* [this options]
-    (->> (build-gauge this options) (register this)))
-  (counter* [this options]
-    (->> (build-counter this options) (register this)))
-  (histogram* [this options]
-    (->> (build-histogram this options) (register this)))
-  (collector* [this {:keys [name namespace]}]
-    (get-in metrics [(or namespace metrics-namespace) name])))
-
-(alter-var-root #'->IapetosRegistry vary-meta assoc :private true)
+;; ## Registry
 
 (defn collector-registry
-  [registry-name]
-  (->IapetosRegistry
-    (CollectorRegistry.)
-    registry-name
-    {}
-    registry-name
-    nil))
+  "Create a fresh iapetos collector registry."
+  ([] (registry/create))
+  ([registry-name] (registry/create registry-name)))
 
-;; ## Metric Collection
+(defn register
+  "Register the given collectors."
+  [registry & collectors]
+  (reduce
+    (fn [registry collector]
+      (registry/register
+        registry
+        (collector/metric collector)
+        collector))
+    registry collectors))
 
-;; ### Counter/Gauge
+(defn register-as
+  "Register the given collector under the given metric name."
+  [registry metric collector]
+  (registry/register registry metric collector))
 
-(defn- inc-gauge
-  [registry metric amount]
-  (let [metric (->metric :gauge metric)]
-    (when-let [^Gauge$Child gauge (maybe-collector registry metric)]
-      (.inc gauge (double amount))
-      registry)))
+(defn get
+  "Retrieve the given collector instance from the given registry, optionally
+   setting the given labels."
+  [registry metric & [labels]]
+  (registry/get registry metric (or labels {})))
+
+;; ## Collectors
+
+(defn counter
+  "Create a new 'Counter' collector:
+   - `:description`: a description for the counter,
+   - `:labels`: a seq of available labels for the counter,
+   - `:lazy?` whether to immediately register the given metric with a registry
+     or not."
+  [metric
+   & [{:keys [description labels lazy?]
+       :or {description "a counter metric."}
+       :as options}]]
+  (-> (merge
+         {:description description}
+         (metric/as-map metric options))
+       (collector/make-simple-collector :counter #(Counter/build))))
+
+(defn gauge
+  "Create a new 'Gauge' collector:
+   - `:description`: a description for the gauge,
+   - `:labels`: a seq of available labels for the gauge,
+   - `:lazy?` whether to immediately register the given metric with a registry
+     or not."
+  [metric
+   & [{:keys [description labels lazy?]
+       :or {description "a gauge metric."}
+       :as options}]]
+  (-> (merge
+         {:description description}
+         (metric/as-map metric options))
+       (collector/make-simple-collector :gauge #(Gauge/build))))
+
+(defn histogram
+  "Create a new 'Histogram' collector:
+   - `:description`: a description for the histogram,
+   - `:buckets`: a seq of double values describing the histogram buckets,
+   - `:labels`: a seq of available labels for the histogram,
+   - `:lazy?` whether to immediately register the given metric with a registry
+     or not."
+  [metric
+   & [{:keys [description buckets labels lazy?]
+       :or {description "a histogram metric."}
+       :as options}]]
+  (-> (merge
+         {:description description}
+         (metric/as-map metric options))
+       (collector/make-simple-collector
+         :histogram
+         #(cond-> (Histogram/build)
+            (seq buckets) (.buckets (double-array buckets))))))
+
+(defn summary
+  "Create a new 'Summary' collector:
+   - `:description`: a description for the summary,
+   - `:labels`: a seq of available labels for the summary,
+   - `:lazy?` whether to immediately register the given metric with a registry
+     or not."
+  [metric
+   & [{:keys [description labels lazy?]
+       :or {description "a summary metric."}
+       :as options}]]
+  (-> (merge
+         {:description description}
+         (metric/as-map metric options))
+       (collector/make-simple-collector :summary #(Summary/build))))
+
+;; ## Raw Operations
+
+(defmacro ^:private with-metric-exception
+  [metric & body]
+  `(try
+     (do ~@body)
+     (catch Exception ex#
+       (throw
+         (RuntimeException.
+           (str "error when updating metric: "
+                (pr-str ~metric))
+           ex#)))))
+
+(defn- dispatch-collector-or-registry
+  [value registry-fn collector-fn]
+  (if (instance? iapetos.registry.IapetosRegistry value)
+    (registry-fn value)
+    (collector-fn value)))
+
+(defn observe
+  "Observe the given amount for the desired metric. This can be either called
+   using a registry and metric name or directly on a collector:
+
+   ```
+   (-> registry (observe :app/active-users-total 10.0))
+   (-> registry :app/active-users-total (observe 10.0))
+   ```
+
+   The return value of this operation is either the collector or registry that
+   was passed in."
+  ([collector amount]
+   (ops/observe collector amount)
+   collector)
+  ([registry metric amount]
+   (observe registry metric {} amount))
+  ([registry metric labels amount]
+   (with-metric-exception metric
+     (observe (registry/get registry metric labels) amount))
+   registry))
 
 (defn inc
-  ([registry metric]
-   (inc registry metric 1.0))
+  "Increment the given metric by the given amount. This can be either called
+   using a registry and metric name or directly on a collector:
+
+   ```
+   (-> registry (inc :app/active-users-total))
+   (-> registry :app/active-users-total (inc))
+   ```
+
+   The return value of this operation is either the collector or registry that
+   was passed in."
+  ([collector]
+   (ops/increment collector 1.0)
+   collector)
+  ([a b]
+   (dispatch-collector-or-registry
+     a
+     #(inc % b {} 1.0)
+     #(ops/increment % b))
+   a)
   ([registry metric amount]
-   (or (inc-gauge registry metric amount)
-       (let [metric (->metric :counter metric)]
-         (-> ^Counter$Child (collector registry metric)
-             (.inc (double amount)))))
+   (inc registry metric {} amount))
+  ([registry metric labels amount]
+   (with-metric-exception metric
+     (inc (registry/get registry metric labels) amount))
    registry))
 
 (defn dec
-  ([registry metric]
-   (dec registry metric 1.0))
+  "Decrement the given metric by the given amount. This can be either called
+   using a registry and metric name or directly on a collector:
+
+   ```
+   (-> registry (inc :app/active-users-total))
+   (-> registry :app/active-users-total (inc))
+   ```
+
+   The return value of this operation is either the collector or registry that
+   was passed in."
+  ([collector]
+   (ops/decrement collector 1.0)
+   collector)
+  ([a b]
+   (dispatch-collector-or-registry
+     a
+     #(dec % b {} 1.0)
+     #(ops/decrement % b))
+   a)
   ([registry metric amount]
-   (let [metric (->metric :gauge metric)]
-     (-> ^Gauge$Child (collector registry metric)
-         (.dec (double amount))))
+   (dec registry metric {} amount))
+  ([registry metric labels amount]
+   (with-metric-exception metric
+     (dec (registry/get registry metric labels) amount))
    registry))
 
 (defn set
-  [registry metric value]
-  (let [metric (->metric :gauge metric)]
-    (-> ^Gauge$Child (collector registry metric)
-        (.set (double value)))
-    registry))
+  "Set the given metric to the given value. This can be either called
+   using a registry and metric name or directly on a collector:
+
+   ```
+   (-> registry (set :app/active-users-total 10.0))
+   (-> registry :app/active-users-total (set 10.0))
+   ```
+
+   The return value of this operation is either the collector or registry that
+   was passed in."
+  ([collector amount]
+   (ops/set-value collector amount)
+   collector)
+  ([registry metric amount]
+   (set registry metric {} amount))
+  ([registry metric labels amount]
+   (with-metric-exception metric
+     (set (registry/get registry metric labels) amount))
+   registry))
 
 (defn set-to-current-time
-  [registry metric]
-  (let [metric (->metric :gauge metric)]
-    (-> ^Gauge$Child (collector registry metric)
-        (.setToCurrentTime))
-    registry))
+  "Set the given metric to the current timestamp. This can be either called
+   using a registry and metric name or directly on a collector:
 
-;; ### Histogram
+   ```
+   (-> registry (set-to-current-time :app/last-success-unixtime))
+   (-> registry :app/last-success-unixtime set-to-current-time)
+   ```
 
-(defn observe
-  [registry metric value]
-  (let [metric (->metric :histogram metric)]
-    (-> ^Histogram$Child (collector registry metric)
-        (.observe (double value)))
-    registry))
+   The return value of this operation is either the collector or registry that
+   was passed in."
+  ([collector]
+   (ops/set-value-to-current-time collector)
+   collector)
+  ([registry metric]
+   (set-to-current-time registry metric {}))
+  ([registry metric labels]
+   (with-metric-exception metric
+     (set-to-current-time (registry/get registry metric labels)))
+   registry))
 
-;; ## Metrics for Blocks
+(defn start-timer
+  "Start a timer that, when stopped, will store the duration in the given
+   metric. This can be either called using a registry and metric name or a
+   collector:
 
-;; ### Last Success
+   ```
+   (-> registry (start-timer :app/duration-seconds))
+   (-> registry :app/duration-seconds (start-timer))
+   ```
 
-(defn ^:no-doc with-success-timestamp*
-  [registry metric f]
-  (let [result (f)]
-    (set-to-current-time registry metric)
-    result))
+   The return value will be a _function_ that should be called once the
+   operation to time has run."
+  ([collector]
+   (ops/start-timer collector))
+  ([registry metric]
+   (start-timer registry metric {}))
+  ([registry metric labels]
+   (with-metric-exception metric
+     (start-timer (registry/get registry metric labels)))))
+
+;; ## Compound Operations
+
+;; ### Counters
+
+(defmacro with-counter
+  "Wrap the given block to increment the given counter once it is done."
+  [collector & body]
+  `(let [c# ~collector]
+     (try
+       (do ~@body)
+       (finally
+         (inc ~collector)))))
+
+(defmacro with-start-counter
+  "Wrap the given block to increment the given counter once it is entered."
+  [collector & body]
+  `(do (inc ~collector) ~@body))
+
+(defmacro with-success-counter
+  "Wrap the given block to increment the given counter once it has run
+   successfully."
+  [collector & body]
+  `(let [result# (do ~@body)]
+     (inc ~collector)
+     result))
+
+(defmacro with-failure-counter
+  "Wrap the given block to increment the given counter if it throws."
+  [collector & body]
+  `(try
+     (do ~@body)
+     (catch Throwable t#
+       (inc ~collector)
+       (throw t#))))
+
+(defmacro with-counters
+  "Wrap the given block to increment the given counters:
+   - `:total`: incremented when the block is left,
+   - `:success`: incremented when the block has executed successfully,
+   - `:failure`: incremented when the block has thrown an exception.
+   "
+  [{:keys [total success failure]} & body]
+  (cond->> `(do ~@body)
+    failure (list `with-failure-counter failure)
+    success (list `with-success-counter success)
+    total   (list `with-start-counter total)))
+
+(defmacro with-activity-counter
+  "Wrap the given block to increment the given collector once it is entered
+   and decrement it once execution is done. This needs a 'Gauge' collector
+   (since 'Counter' ones cannot be decremented).
+
+   Example: Counting the number of in-flight requests in an HTTP server."
+  [collector & body]
+  `(let [c# ~collector]
+     (inc c#)
+     (try
+       (do ~@body)
+       (finally
+         (dec c#)))))
+
+;; ## Timestamps
+
+(defmacro with-timestamp
+  "Wrap the given block to store the current timestamp in the given collector
+   once execution is done."
+  [collector & body]
+  `(try
+     (do ~@body)
+     (finally
+       (set-to-current-time ~collector))))
 
 (defmacro with-success-timestamp
-  [[registry metric] & body]
-  `(with-success-timestamp* ~registry ~metric (fn [] ~@body)))
+  "Wrap the given block to store the current timestamp in the given collector
+   once execution is done successfully."
+  [collector & body]
+  `(let [result# (do ~@body)]
+     (set-to-current-time ~collector)
+     result#))
 
-;; ### Duration
+(defmacro with-failure-timestamp
+  "Wrap the given block to store the current timestamp in the given collector
+   once execution has failed."
+  [collector & body]
+  (try
+    (do ~@body)
+    (catch Throwable t#
+      (set-to-current-time ~collector)
+      (throw t#))))
 
-(defn ^:no-doc with-duration*
-  [registry metric f]
-  (let [metric (->metric :gauge metric)
-        ^Gauge$Child gauge (collector registry metric)
-        ^Gauge$Timer timer (.startTimer gauge)]
-    (try
-      (f)
-      (finally
-        (.setDuration timer)))))
+(defmacro with-timestamps
+  "Wrap the given block to set a number of timestamps depending on whether
+   execution succeeds or fails:
+   `:last-run`: the last time the block was run,
+   `:last-success`: the last time the block was run successfully,
+   `:last-failure`: the last time execution failed.
+   "
+  [{:keys [last-run last-success last-failure]} & body]
+  (cond->> `(do ~@body)
+    last-failure (list `with-failure-timestamp last-failure)
+    last-success (list `with-success-timestamp last-success)
+    last-run     (list `with-timestamp last-run)))
+
+;; ### Durations
 
 (defmacro with-duration
-  [[registry metric] & body]
-  `(with-duration* ~registry ~metric (fn [] ~@body)))
-
-;; ### Duration Histogram
-
-(defn ^:no-doc with-duration-histogram*
-  [registry metric f]
-  (let [metric (->metric :histogram metric)
-        ^Histogram$Child histogram (collector registry metric)
-        ^Histogram$Timer timer (.startTimer histogram)]
-    (try
-      (f)
-      (finally
-        (.observeDuration timer)))))
-
-(defmacro with-duration-histogram
-  [[registry metric] & body]
-  `(with-duration-histogram* ~registry ~metric (fn [] ~@body)))
+  "Wrap the given block to write its execution time to the given collector."
+  [collector & body]
+  `(let [stop# (start-timer ~collector)]
+     (try
+       (do ~@body)
+       (finally
+         (stop#)))))
