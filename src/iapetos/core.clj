@@ -291,7 +291,7 @@
   [collector & body]
   `(let [result# (do ~@body)]
      (inc ~collector)
-     result))
+     result#))
 
 (defmacro with-failure-counter
   "Wrap the given block to increment the given counter if it throws."
@@ -351,11 +351,11 @@
   "Wrap the given block to store the current timestamp in the given collector
    once execution has failed."
   [collector & body]
-  (try
-    (do ~@body)
-    (catch Throwable t#
-      (set-to-current-time ~collector)
-      (throw t#))))
+  `(try
+     (do ~@body)
+     (catch Throwable t#
+       (set-to-current-time ~collector)
+       (throw t#))))
 
 (defmacro with-timestamps
   "Wrap the given block to set a number of timestamps depending on whether

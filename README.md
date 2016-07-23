@@ -84,6 +84,30 @@ collectors.
 __Note:__ You need to include the artifact `io.prometheus/simpleclient_hotspot`
 explicitly in your project's dependencies.
 
+### Function Instrumentation
+
+To collect metrics about specific functions, you can use the functionality
+provided in `iapetos.collector.fn`:
+
+```clojure
+(require '[iapetos.collectors.fn :as fn])
+
+(defn- run-the-job!
+  [job]
+  ...)
+
+(defonce registry
+  (->> (prometheus/collector-registry)
+       ...
+       (fn/initialize)
+       (fn/instrument #'run-the-job!)))
+```
+
+Now, every call to `run-the-job!` will update a series of duration, success and
+failure metrics. Note that re-evaluation of the `run-the-job!` declaration will
+remove the instrumentation again - which shouldn't be a problem in production,
+though.
+
 ### More
 
 Soon.
