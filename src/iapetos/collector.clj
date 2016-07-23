@@ -125,3 +125,31 @@
     (raw-metric this))
   (label-instance [_ instance _]
     instance))
+
+;; ## Named Collector
+
+(defn named
+  [metric ^io.prometheus.client.Collector instance]
+  (reify Collector
+    (instantiate [_ registry]
+      (.register instance ^CollectorRegistry registry)
+      (delay instance))
+    (metric [_]
+      metric)
+    (label-instance [_ _ _]
+      (throw (UnsupportedOperationException.)))))
+
+;; ## Collector Bundle
+
+(defn bundle
+  [metric instances]
+  (let [instances (filter identity instances)]
+    (reify Collector
+      (instantiate [_ registry]
+        (doseq [^io.prometheus.client.Collector collector instances]
+          (.register collector registry))
+        (delay instances))
+      (metric [_]
+        metric)
+      (label-instance [_ _ _]
+        (throw (UnsupportedOperationException.))))))
