@@ -123,7 +123,7 @@ usage, thread count, ...) and can be added to your registry using the
 `iapetos.collector.jvm` namespace:
 
 ```clojure
-(require '[iapetos.collectors.jvm :as jvm])
+(require '[iapetos.collector.jvm :as jvm])
 
 (defonce registry
   (-> (prometheus/collector-registry)
@@ -147,7 +147,7 @@ To collect metrics about specific functions, you can use the functionality
 provided in `iapetos.collector.fn`:
 
 ```clojure
-(require '[iapetos.collectors.fn :as fn])
+(require '[iapetos.collector.fn :as fn])
 
 (defn- run-the-job!
   [job]
