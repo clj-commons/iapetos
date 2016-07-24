@@ -13,6 +13,8 @@ Don't. This is mostly me exploring Prometheus.
 
 ### Registering Metrics
 
+[__Documentation__](https://xsc.github.io/iapetos/iapetos.core.html)
+
 All metrics have to be registered with a collector registry before being used:
 
 ```clojure
@@ -53,6 +55,8 @@ All metric operations can be called directly on such a collector, i.e.:
 ```
 
 ### Metric Export
+
+[__Documentation__](https://xsc.github.io/iapetos/iapetos.export.html)
 
 Metrics can be transformed into a textual representation using
 `iapetos.export/text-format`:
@@ -118,6 +122,8 @@ registry with a label/value-map:
 
 ### JVM Metrics
 
+[__Documentation__](https://xsc.github.io/iapetos/iapetos.collector.jvm.html)
+
 Some characteristics of your current JVM are always useful (e.g. memory
 usage, thread count, ...) and can be added to your registry using the
 `iapetos.collector.jvm` namespace:
@@ -143,6 +149,8 @@ explicitly in your project's dependencies.
 
 ### Function Instrumentation
 
+[__Documentation__](https://xsc.github.io/iapetos/iapetos.collector.fn.html)
+
 To collect metrics about specific functions, you can use the functionality
 provided in `iapetos.collector.fn`:
 
@@ -165,6 +173,8 @@ failure metrics. Note, however, that re-evaluation of the `run-the-job!`
 declaration will remove the instrumentation again.
 
 ### Ring
+
+[__Documentation__](https://xsc.github.io/iapetos/iapetos.collector.ring.html)
 
 `iapetos.collector.ring` offers middlewares to
 
