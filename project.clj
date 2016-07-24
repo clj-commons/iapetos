@@ -17,6 +17,7 @@
                       :source-uri "https://github.com/xsc/iapetos/blob/v{version}/{filepath}#L{line}"
                       :output-path "doc"
                       :namespaces [iapetos.core
+                                   iapetos.export
                                    #"^iapetos\.collector\..+"]}}}
   :aliases {"codox" ["with-profile" "+codox" "codox"]}
   :pedantic? :abort)
