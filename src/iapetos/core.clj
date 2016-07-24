@@ -35,20 +35,17 @@
     registry collectors))
 
 (defn register-as
-  "Register the given collector under the given metric name."
+  "Register the given collector under the given metric name. This is useful
+   for plain Prometheus collectors, i.e. those that are not provided by
+   iapetos."
   [registry metric collector]
   (registry/register registry metric collector))
-
-(defn get
-  "Retrieve the given collector instance from the given registry, optionally
-   setting the given labels."
-  [registry metric & [labels]]
-  (registry/get registry metric (or labels {})))
 
 ;; ## Collectors
 
 (defn counter
-  "Create a new 'Counter' collector:
+  "Create a new `Counter` collector:
+
    - `:description`: a description for the counter,
    - `:labels`: a seq of available labels for the counter,
    - `:lazy?` whether to immediately register the given metric with a registry
@@ -63,7 +60,8 @@
        (collector/make-simple-collector :counter #(Counter/build))))
 
 (defn gauge
-  "Create a new 'Gauge' collector:
+  "Create a new `Gauge` collector:
+
    - `:description`: a description for the gauge,
    - `:labels`: a seq of available labels for the gauge,
    - `:lazy?` whether to immediately register the given metric with a registry
@@ -78,7 +76,8 @@
        (collector/make-simple-collector :gauge #(Gauge/build))))
 
 (defn histogram
-  "Create a new 'Histogram' collector:
+  "Create a new `Histogram` collector:
+
    - `:description`: a description for the histogram,
    - `:buckets`: a seq of double values describing the histogram buckets,
    - `:labels`: a seq of available labels for the histogram,
@@ -97,7 +96,8 @@
             (seq buckets) (.buckets (double-array buckets))))))
 
 (defn summary
-  "Create a new 'Summary' collector:
+  "Create a new `Summary` collector:
+
    - `:description`: a description for the summary,
    - `:labels`: a seq of available labels for the summary,
    - `:lazy?` whether to immediately register the given metric with a registry
@@ -345,6 +345,7 @@
 
 (defmacro with-counters
   "Wrap the given block to increment the given counters:
+
    - `:total`: incremented when the block is left,
    - `:success`: incremented when the block has executed successfully,
    - `:failure`: incremented when the block has thrown an exception.
@@ -357,8 +358,8 @@
 
 (defmacro with-activity-counter
   "Wrap the given block to increment the given collector once it is entered
-   and decrement it once execution is done. This needs a 'Gauge' collector
-   (since 'Counter' ones cannot be decremented).
+   and decrement it once execution is done. This needs a [[gauge]] collector
+   (since [[counter]] ones cannot be decremented).
 
    Example: Counting the number of in-flight requests in an HTTP server."
   [collector & body]
@@ -373,7 +374,9 @@
 
 (defmacro with-timestamp
   "Wrap the given block to store the current timestamp in the given collector
-   once execution is done."
+   once execution is done.
+
+   Needs a [[gauge]] collector."
   [collector & body]
   `(try
      (do ~@body)
@@ -382,7 +385,9 @@
 
 (defmacro with-success-timestamp
   "Wrap the given block to store the current timestamp in the given collector
-   once execution is done successfully."
+   once execution is done successfully.
+
+   Needs a [[gauge]] collector."
   [collector & body]
   `(let [result# (do ~@body)]
      (set-to-current-time ~collector)
@@ -390,7 +395,9 @@
 
 (defmacro with-failure-timestamp
   "Wrap the given block to store the current timestamp in the given collector
-   once execution has failed."
+   once execution has failed.
+
+   Needs a [[gauge]] collector."
   [collector & body]
   `(try
      (do ~@body)
@@ -401,10 +408,12 @@
 (defmacro with-timestamps
   "Wrap the given block to set a number of timestamps depending on whether
    execution succeeds or fails:
+
    `:last-run`: the last time the block was run,
    `:last-success`: the last time the block was run successfully,
    `:last-failure`: the last time execution failed.
-   "
+
+   All keys are optional but have to point at a [[gauge]] collector if given."
   [{:keys [last-run last-success last-failure]} & body]
   (cond->> `(do ~@body)
     last-failure (list `with-failure-timestamp last-failure)
@@ -414,7 +423,9 @@
 ;; ### Durations
 
 (defmacro with-duration
-  "Wrap the given block to write its execution time to the given collector."
+  "Wrap the given block to write its execution time to the given collector.
+
+   Works with [[gauge]], [[histogram]] and [[summary]] collectors."
   [collector & body]
   `(let [stop# (start-timer ~collector)]
      (try

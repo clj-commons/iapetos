@@ -10,4 +10,13 @@
                  [io.prometheus/simpleclient_common "0.0.15"]
                  [io.prometheus/simpleclient_pushgateway "0.0.15"]
                  [io.prometheus/simpleclient_hotspot "0.0.15" :scope "provided"]]
+  :profiles {:codox
+             {:plugins [[lein-codox "0.9.4"]]
+              :codox {:project {:name "iapetos"}
+                      :metadata {:doc/format :markdown}
+                      :source-uri "https://github.com/xsc/iapetos/blob/v{version}/{filepath}#L{line}"
+                      :output-path "doc"
+                      :namespaces [iapetos.core
+                                   #"^iapetos\.collector\..+"]}}}
+  :aliases {"codox" ["with-profile" "+codox" "codox"]}
   :pedantic? :abort)
