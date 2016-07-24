@@ -9,9 +9,11 @@ Client][java-client].
 
 Don't. This is mostly me exploring Prometheus.
 
-### Basic Usage
+## Basic Usage
 
-Metrics have to be declared on a collector registry before being used:
+### Registering Metrics
+
+All metrics have to be registered with a collector registry before being used:
 
 ```clojure
 (require '[iapetos.core :as prometheus])
@@ -25,39 +27,94 @@ Metrics have to be declared on a collector registry before being used:
         (prometheus/counter   :app/runs-total))))
 ```
 
-Now, you can write an instrumented function using some of iapetos' helper macros
-or by operating directly on the collectors:
+Now, they are ready to be set and changed:
 
 ```clojure
-(defn run
-  []
-  (prometheus/inc registry :app/runs-total)
-  (prometheus/with-duration (registry :app/duration-seconds)
-    (prometheus/with-success-timestamp (registry :app/last-success-unixtime)
-      ...
-      (prometheus/set registry :app/active-users-total (count-users!))
-      true)))
+(-> registry
+    (prometheus/inc     :app/runs-total)
+    (prometheus/observe :app/duration-seconds 0.7)
+    (prometheus/set     :app/active-users-total 22))
 ```
 
-The metrics can then be either exported using a textual representation:
+The registry itself implements `clojure.lang.IFn` to allow access to all
+registered metrics (plus setting of metric [labels](#labels)), e.g.:
+
+```clojure
+(registry :app/duration-seconds)
+;; => #object[io.prometheus.client.Histogram$Child ...]
+```
+
+All metric operations can be called directly on such a collector, i.e.:
+
+```clojure
+(prometheus/inc     (registry :app/runs-total))
+(prometheus/observe (registry :app/duration-seconds) 0.7)
+(prometheus/set     (registry :app/active-users-total) 22)
+```
+
+### Metric Export
+
+Metrics can be transformed into a textual representation using
+`iapetos.export/text-format`:
 
 ```clojure
 (require '[iapetos.export :as export])
+
 (print (export/text-format registry))
 ;; # HELP app_active_users_total a gauge metric.
 ;; # TYPE app_active_users_total gauge
-;; app_active_users_total 10.0
-;; # HELP app_last_success_unixtime a gauge metric.
-;; # TYPE app_last_success_unixtime gauge
-;; app_last_success_unixtime 1.469284587819E9
+;; app_active_users_total 22.0
+;; # HELP app_runs_total a counter metric.
+;; # TYPE app_runs_total counter
+;; app_runs_total 1.0
 ;; ...
 ```
 
-Or pushed to the respective Prometheus gateway:
+This could now be exposed e.g. using an HTTP endpoint (see also iapetos'
+[Ring](#ring) integration). Alternatively, metrics can be pushed to the
+respective Prometheus `PushGateway` if applicable:
 
 ```clojure
 (export/push! registry {:gateway "push-gateway:12345"})
 ```
+
+### Labels
+
+Prometheus allows for labels to be associated with metrics which can be declared
+for each collector before it is registered:
+
+```clojure
+(def job-latency-histogram
+  (prometheus/histogram
+    :app/job-latency-seconds
+    {:description "job execution latency by job type"
+     :labels [:job-type]
+     :buckets [1.0 5.0 7.5 10.0 12.5 15.0]}))
+
+(defonce registry
+  (-> (prometheus/collector-registry)
+      (prometheus/register job-latency-histogram)))
+```
+
+Now, you can lookup a collector bound to a set of labels by calling the
+registry with a label/value-map:
+
+```clojure
+(prometheus/observe (registry :app/job-latency-seconds {:job-type "pull"}) 14.2)
+(prometheus/observe (registry :app/job-latency-seconds {:job-type "push"}) 8.7)
+
+(print (export/text-format registry))
+;; # HELP app_job_latency_seconds job execution latency by job type
+;; # TYPE app_job_latency_seconds histogram
+;; app_job_latency_seconds_bucket{job_type="pull",le="1.0",} 0.0
+;; app_job_latency_seconds_bucket{job_type="pull",le="5.0",} 0.0
+;; ...
+;; app_job_latency_seconds_bucket{job_type="push",le="1.0",} 0.0
+;; app_job_latency_seconds_bucket{job_type="push",le="5.0",} 0.0
+;; ...
+```
+
+## Features
 
 ### JVM Metrics
 
@@ -104,13 +161,8 @@ provided in `iapetos.collector.fn`:
 ```
 
 Now, every call to `run-the-job!` will update a series of duration, success and
-failure metrics. Note that re-evaluation of the `run-the-job!` declaration will
-remove the instrumentation again - which shouldn't be a problem in production,
-though.
-
-### More
-
-Soon.
+failure metrics. Note, however, that re-evaluation of the `run-the-job!`
+declaration will remove the instrumentation again.
 
 ## License
 
