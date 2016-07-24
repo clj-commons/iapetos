@@ -82,6 +82,13 @@
 ;; ## Histogram
 
 (extend-type Histogram$Child
+  ReadableCollector
+  (read-value [this]
+    (let [^io.prometheus.client.Histogram$Child$Value value
+          (.get ^Histogram$Child this)]
+      {:sum     (.-sum value)
+       :buckets (vec (.-buckets value))}))
+
   ObservableCollector
   (observe [this amount]
     (.observe ^Histogram$Child this (double amount)))
@@ -94,6 +101,13 @@
 ;; ## Summary
 
 (extend-type Summary$Child
+  ReadableCollector
+  (read-value [this]
+    (let [^io.prometheus.client.Summary$Child$Value value
+          (.get ^Summary$Child this)]
+      {:sum   (.-sum value)
+       :count (.-count value)}))
+
   ObservableCollector
   (observe [this amount]
     (.observe ^Summary$Child this (double amount)))

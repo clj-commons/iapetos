@@ -290,6 +290,24 @@
    (with-metric-exception metric
      (start-timer (registry/get registry metric labels)))))
 
+(defn value
+  "Read the current value of a metric. This can be either called using a
+   registry and a metric name or directly on a collector:
+
+   ```
+   (-> registry (value :app/duration-seconds))
+   (-> registry :app/duration-seconds (value))
+   ```
+
+   The return value depends on the type of collector."
+  ([collector]
+   (ops/read-value collector))
+  ([registry metric]
+   (value registry metric {}))
+  ([registry metric labels]
+   (with-metric-exception metric
+     (value (registry/get registry metric labels)))))
+
 ;; ## Compound Operations
 
 ;; ### Counters
