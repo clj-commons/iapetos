@@ -124,11 +124,16 @@
                 (pr-str ~metric))
            ex#)))))
 
-(defn- dispatch-collector-or-registry
-  [value registry-fn collector-fn]
-  (if (instance? iapetos.registry.IapetosRegistry value)
-    (registry-fn value)
-    (collector-fn value)))
+(defmacro ^:private ?->
+  [value predicate then-branch _ else-branch]
+  `(let [v# ~value]
+     (if (~predicate v#)
+       (-> v# ~then-branch)
+       (-> v# ~else-branch))))
+
+(defn- registry?
+  [value]
+  (instance? iapetos.registry.IapetosRegistry value))
 
 (defn observe
   "Observe the given amount for the desired metric. This can be either called
@@ -151,7 +156,14 @@
      (observe (registry/get registry metric labels) amount))
    registry))
 
-(defn inc
+(def
+  ^{:arglists '([collector]
+                [collector amount]
+                [registry metric]
+                [registry metric amount]
+                [registry metric labels]
+                [registry metric labels amount])}
+  inc
   "Increment the given metric by the given amount. This can be either called
    using a registry and metric name or directly on a collector:
 
@@ -162,23 +174,32 @@
 
    The return value of this operation is either the collector or registry that
    was passed in."
-  ([collector]
-   (ops/increment collector 1.0)
-   collector)
-  ([a b]
-   (dispatch-collector-or-registry
-     a
-     #(inc % b {} 1.0)
-     #(ops/increment % b))
-   a)
-  ([registry metric amount]
-   (inc registry metric {} amount))
-  ([registry metric labels amount]
-   (with-metric-exception metric
-     (inc (registry/get registry metric labels) amount))
-   registry))
+  (fn
+    ([collector]
+     (ops/increment collector 1.0)
+     collector)
+    ([a b]
+     (?-> a
+          registry?  (inc b {} 1.0)
+          :else      (ops/increment b))
+     a)
+    ([registry metric amount-or-labels]
+     (?-> amount-or-labels
+          map?  (as-> <> (inc registry metric <> 1.0))
+          :else (as-> <> (inc registry metric {} <>))))
+    ([registry metric labels amount]
+     (with-metric-exception metric
+       (inc (registry/get registry metric labels) amount))
+     registry)))
 
-(defn dec
+(def
+  ^{:arglists '([collector]
+                [collector amount]
+                [registry metric]
+                [registry metric amount]
+                [registry metric labels]
+                [registry metric labels amount])}
+  dec
   "Decrement the given metric by the given amount. This can be either called
    using a registry and metric name or directly on a collector:
 
@@ -189,21 +210,23 @@
 
    The return value of this operation is either the collector or registry that
    was passed in."
-  ([collector]
-   (ops/decrement collector 1.0)
-   collector)
-  ([a b]
-   (dispatch-collector-or-registry
-     a
-     #(dec % b {} 1.0)
-     #(ops/decrement % b))
-   a)
-  ([registry metric amount]
-   (dec registry metric {} amount))
-  ([registry metric labels amount]
-   (with-metric-exception metric
-     (dec (registry/get registry metric labels) amount))
-   registry))
+  (fn
+    ([collector]
+     (ops/decrement collector 1.0)
+     collector)
+    ([a b]
+     (?-> a
+          registry?  (dec b {} 1.0)
+          :else      (ops/decrement b))
+     a)
+    ([registry metric amount-or-labels]
+     (?-> amount-or-labels
+          map?  (as-> <> (dec registry metric <> 1.0))
+          :else (as-> <> (dec registry metric {} <>))))
+    ([registry metric labels amount]
+     (with-metric-exception metric
+       (dec (registry/get registry metric labels) amount))
+     registry)))
 
 (defn set
   "Set the given metric to the given value. This can be either called
