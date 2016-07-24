@@ -154,15 +154,51 @@ provided in `iapetos.collector.fn`:
   ...)
 
 (defonce registry
-  (->> (prometheus/collector-registry)
-       ...
-       (fn/initialize)
-       (fn/instrument #'run-the-job!)))
+  (-> (prometheus/collector-registry)
+      ...
+      (fn/initialize)
+      (fn/instrument #'run-the-job!)))
 ```
 
 Now, every call to `run-the-job!` will update a series of duration, success and
 failure metrics. Note, however, that re-evaluation of the `run-the-job!`
 declaration will remove the instrumentation again.
+
+### Ring
+
+`iapetos.collector.ring` offers middlewares to
+
+- expose a iapetos collector registry via a fixed HTTP endpoint, and
+- collect metrics for Ring handlers.
+
+First, you need to initialize the available collectors in the registry:
+
+```clojure
+(require '[iapetos.collector.ring :as ring])
+
+(defonce registry
+  (-> (prometheus/collector-registry)
+      (ring/initialize)))
+```
+
+Afterwards, you can add the middlewares to your Ring stack:
+
+```clojure
+(def app
+  (-> (constantly {:status 200})
+      (ring/wrap-instrumentation registry)
+      (ring/wrap-metrics registry {:metrics-uri "/metrics"})))
+```
+
+The following metrics will now be collected and exposed via the `/metrics`
+endpoint:
+
+- `http_requests_total`
+- `http_request_latency_seconds`
+
+These are, purposefully, compatible with the metrics produced by
+[prometheus-clj](https://github.com/soundcloud/prometheus-clj), as to allow a
+smooth migration.
 
 ## License
 
