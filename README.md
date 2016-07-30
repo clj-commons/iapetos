@@ -124,8 +124,8 @@ registry with a label/value-map:
 
 ### Subsystems
 
-In addition to namespaces, you can declare collectors to belong to subsystems,
-i.e.:
+In addition to namespaces, you can create collector declarations belonging to a
+subsystem, i.e.:
 
 ```clojure
 (prometheus/counter
@@ -134,8 +134,8 @@ i.e.:
    :subsystem "worker"})
 ```
 
-But this reduces their reusability - you might want to use the above collector
-for a different subsystem without having to create it anew - which is why
+But this reduces its reusability - you might want to register the above counter
+twice in different subsystems without having to create it anew - which is why
 iapetos lets you specify the subsystem on the registry level:
 
 ```clojure
