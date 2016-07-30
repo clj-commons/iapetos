@@ -1,5 +1,6 @@
 (ns iapetos.collector.jvm
-  (:require [iapetos.collector :as collector])
+  (:require [iapetos.collector :as collector]
+            [iapetos.core :as prometheus])
   (:import [io.prometheus.client
             Collector
             CollectorRegistry]
@@ -9,24 +10,11 @@
             GarbageCollectorExports
             ThreadExports]))
 
-;; ## Exports
-
-(defonce ^:private standard-exports
-  (delay (StandardExports.)))
-
-(defonce ^:private gc-exports
-  (delay (GarbageCollectorExports.)))
-
-(defonce ^:private thread-exports
-  (delay (ThreadExports.)))
-
-(defonce ^:private memory-exports
-  (delay (MemoryPoolsExports.)))
-
 ;; ## Collectors
 
 (defn standard
-  "A set of standard collectors for the JVM."
+  "A set of standard collectors for the JVM.
+   Can be attached to a iapetos registry using `iapetos.core/register`."
   []
   (collector/named
     {:namespace "iapetos_internal"
@@ -34,7 +22,8 @@
     (StandardExports.)))
 
 (defn gc
-  "A set of GC metric collectors for the JVM."
+  "A set of GC metric collectors for the JVM.
+   Can be attached to a iapetos registry using `iapetos.core/register`."
   []
   (collector/named
     {:namespace "iapetos_internal"
@@ -42,7 +31,8 @@
     (GarbageCollectorExports.)))
 
 (defn memory-pools
-  "A set of memory usage metric collectors for the JVM."
+  "A set of memory usage metric collectors for the JVM.
+   Can be attached to a iapetos registry using `iapetos.core/register`."
   []
   (collector/named
     {:namespace "iapetos_internal"
@@ -50,20 +40,22 @@
     (MemoryPoolsExports.)))
 
 (defn threads
-  "A set of thread usage metric collectors for the JVM."
+  "A set of thread usage metric collectors for the JVM.
+   Can be attached to a iapetos registry using `iapetos.core/register`."
   []
   (collector/named
     {:namespace "iapetos_internal"
      :name      "jvm_threads"}
     (ThreadExports.)))
 
-(defn all
-  "Includes all available JVM metric collectors."
-  []
-  (collector/bundle
-    {:namespace "iapetos_internal"
-     :name      "jvm_all"}
-    [(StandardExports.)
-     (MemoryPoolsExports.)
-     (GarbageCollectorExports.)
-     (ThreadExports.)]))
+;; ## Initialize
+
+(defn initialze
+  "Attach all available JVM collectors to the given registry."
+  [registry]
+  (-> registry
+      (prometheus/register
+        (standard)
+        (gc)
+        (memory-pools)
+        (threads))))

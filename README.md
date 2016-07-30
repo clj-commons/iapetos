@@ -137,16 +137,20 @@ usage, thread count, ...) and can be added to your registry using the
 
 (defonce registry
   (-> (prometheus/collector-registry)
+      (jvm/initialize)))
+```
+
+Alternatively, you can selectively register the JVM collectors:
+
+```clojure
+(defonce registry
+  (-> (prometheus/collector-registry)
       (prometheus/register
-        ...
         (jvm/standard)
         (jvm/gc)
         (jvm/memory-pools)
         (jvm/threads))))
 ```
-
-There is also `iapetos.collector.jvm/all` which will register all JVM
-collectors.
 
 __Note:__ You need to include the artifact `io.prometheus/simpleclient_hotspot`
 explicitly in your project's dependencies.
