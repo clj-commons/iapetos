@@ -122,6 +122,46 @@ registry with a label/value-map:
 ;; ...
 ```
 
+### Subsystems
+
+In addition to namespaces, you can declare collectors to belong to subsystems,
+i.e.:
+
+```clojure
+(prometheus/counter
+  :app/job-runs-total
+  {:description "the total number of finished job executions."
+   :subsystem "worker"})
+```
+
+But this reduces their reusability - you might want to use the above collector
+for a different subsystem without having to create it anew - which is why
+iapetos lets you specify the subsystem on the registry level:
+
+```clojure
+(defonce registry
+  (prometheus/collector-registry))
+
+(defonce worker-registry
+  (-> registry
+      (prometheus/subsystem "worker")
+      (prometheus/register ...)))
+
+(defonce httpd-registry
+  (-> registry
+      (prometheus/subsystem "httpd")
+      (prometheus/register ...)))
+```
+
+Now, collectors added to `worker-registry` and `httpd-registry` will have the
+appropriate subsystem. And when `registry` is exported it will contain all
+metrics that were added to the subsystems.
+
+(Note, however, that the subsystem registries will not have access to the
+original registry's collectors, i.e. you have to reregister things like
+[function instrumentation](#function-instrumentation) or [Ring](#ring)
+collectors.)
+
 ## Features
 
 ### JVM Metrics

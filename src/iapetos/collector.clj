@@ -9,7 +9,7 @@
 
 (defprotocol Collector
   "Protocol for Collectors to be registered with a iapetos registry."
-  (instantiate [this registry]
+  (instantiate [this registry registry-options]
     "Return a `clojure.lang.Delay` with an instance of this collector
      registered to the given `CollectorRegistry`.")
   (metric [this]
@@ -51,8 +51,9 @@
                                 builder-constructor
                                 lazy?]
   Collector
-  (instantiate [this registry]
-    (let [deferred-collector (delay
+  (instantiate [this registry registry-options]
+    (let [subsystem (or (:subsystem this) (:subsystem registry-options))
+          deferred-collector (delay
                                (-> ^SimpleCollector$Builder
                                    (builder-constructor)
                                    (.name name)
@@ -102,7 +103,7 @@
 
 (extend-protocol Collector
   io.prometheus.client.SimpleCollector
-  (instantiate [this registry]
+  (instantiate [this registry _]
     (.register
       ^io.prometheus.client.Collector this
       ^CollectorRegistry registry)
@@ -116,7 +117,7 @@
     instance)
 
   io.prometheus.client.Collector
-  (instantiate [this registry]
+  (instantiate [this registry _]
     (.register
       ^io.prometheus.client.Collector this
       ^CollectorRegistry registry)
@@ -131,7 +132,7 @@
 (defn named
   [metric ^io.prometheus.client.Collector instance]
   (reify Collector
-    (instantiate [_ registry]
+    (instantiate [_ registry _]
       (.register instance ^CollectorRegistry registry)
       (delay instance))
     (metric [_]
@@ -145,7 +146,7 @@
   [metric instances]
   (let [instances (filter identity instances)]
     (reify Collector
-      (instantiate [_ registry]
+      (instantiate [_ registry _]
         (doseq [^io.prometheus.client.Collector collector instances]
           (.register collector registry))
         (delay instances))

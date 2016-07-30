@@ -8,6 +8,8 @@
 
 (defprotocol ^:private Registry
   "Protocol for the iapetos collector registry."
+  (subsystem [registry subsystem-name]
+    "Create a new registry that is bound to the given subsystem.")
   (register [registry metric collector]
     "Add the given `iapetos.collector/Collector` to the registry using the
      given name.")
@@ -21,18 +23,30 @@
 
 ;; ## Implementation
 
-(deftype IapetosRegistry [registry-name registry metrics]
+(defn- metric->path
+  [metric {:keys [subsystem]}]
+  (let [{:keys [name namespace]} (metric/metric-name metric)]
+    [namespace subsystem name]))
+
+(deftype IapetosRegistry [registry-name registry options metrics]
   Registry
   (register [_ metric collector]
-    (let [instance (collector/instantiate collector registry)
-          {:keys [name namespace]} (metric/metric-name metric)]
+    (let [instance (collector/instantiate collector registry options)
+          path (metric->path metric options)]
       (->> {:collector collector
             :instance  instance}
-           (assoc-in metrics [namespace name])
-           (IapetosRegistry. registry-name registry))))
+           (assoc-in metrics path)
+           (IapetosRegistry. registry-name registry options))))
+  (subsystem [_ subsystem-name]
+    (assert (string? subsystem-name))
+    (IapetosRegistry.
+      registry-name
+      registry
+      (assoc options :subsystem subsystem-name)
+      {}))
   (get [_ metric labels]
-    (let [{:keys [name namespace]} (metric/metric-name metric)]
-      (when-let [{:keys [instance collector]} (get-in metrics [namespace name])]
+    (let [path (metric->path metric options)]
+      (when-let [{:keys [instance collector]} (get-in metrics path)]
         (collector/label-instance
           collector
           @instance
@@ -59,4 +73,4 @@
 (defn create
   ([] (create "iapetos_registry"))
   ([registry-name]
-   (IapetosRegistry. registry-name (CollectorRegistry.) {})))
+   (IapetosRegistry. registry-name (CollectorRegistry.) {} {})))

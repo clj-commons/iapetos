@@ -41,6 +41,13 @@
   [registry metric collector]
   (registry/register registry metric collector))
 
+(defn subsystem
+  "Create a new registry bound to the given subsystem. The resulting value will
+   not have access to any of the original registry's collectors."
+  [registry subsystem-name]
+  {:pre [subsystem-name]}
+  (registry/subsystem registry (metric/underscore subsystem-name)))
+
 ;; ## Collectors
 
 (defn counter
