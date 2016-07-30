@@ -212,8 +212,9 @@ provided in `iapetos.collector.fn`:
 (defonce registry
   (-> (prometheus/collector-registry)
       ...
-      (fn/initialize)
-      (fn/instrument #'run-the-job!)))
+      (fn/initialize)))
+
+(fn/instrument! registry #'run-the-job!)
 ```
 
 Now, every call to `run-the-job!` will update a series of duration, success and

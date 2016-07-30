@@ -20,31 +20,32 @@
            (list condition `(wrap ~body))))
        (list* `cond->> v)))
 
-(defn- wrap-instrumentation
+(defn wrap-instrumentation
+  "Wrap the given function to write a series of execution metrics to the given
+   registry. See [[initialize]]."
   [f registry fn-name
    {:keys [duration?
            last-failure?
-           failure-count?
-           success-count?
-           total-count?]
+           attempt-count?
+           run-count?]
     :or {duration? true
          last-failure? true
-         failure-count? true
-         success-count? false
-         total-count? false}}]
-  (let [labels {:fn fn-name}]
+         attempt-count? false
+         run-count? true}}]
+  (let [labels {:fn fn-name, :result "success"}
+        failure-labels (assoc labels :result "failure")]
     (wrap->>
       f
       duration?      (prometheus/with-duration
                        (registry :fn/duration-seconds labels))
       last-failure?  (prometheus/with-failure-timestamp
                        (registry :fn/last-failure-unixtime labels))
-      failure-count? (prometheus/with-failure-counter
-                       (registry :fn/failures-total labels))
-      success-count? (prometheus/with-success-counter
-                       (registry :fn/successes-total labels))
-      total-count?   (prometheus/with-counter
-                       (registry :fn/runs-total labels)))))
+      run-count?     (prometheus/with-failure-counter
+                       (registry :fn/runs-total failure-labels))
+      run-count?     (prometheus/with-success-counter
+                       (registry :fn/runs-total labels))
+      attempt-count? (prometheus/with-counter
+                       (registry :fn/attempts-total labels)))))
 
 (defn- instrument-function!
   [registry fn-name fn-var options]
@@ -62,8 +63,7 @@
 
    - `fn_duration_seconds`
    - `fn_last_failure_unixtime`
-   - `fn_successes_total`
-   - `fn_failures_total`
+   - `fn_attempts_total`
    - `fn_runs_total`
    "
   [registry]
@@ -75,34 +75,28 @@
          (prometheus/gauge
            :fn/last-failure-unixtime
            {:description "the UNIX timestamp of the last time the observed function threw an exception."
-            :labels [:fn]
-            :lazy? true})
-         (prometheus/counter
-           :fn/successes-total
-           {:description "the number of successful runs of the observed function."
             :labels [:fn]})
          (prometheus/counter
-           :fn/failures-total
-           {:description "the number of failures during execution of the observed function."
+           :fn/attempts-total
+           {:description "the total number of attempted runs of the observed function."
             :labels [:fn]})
          (prometheus/counter
            :fn/runs-total
-           {:description "the total number of runs of the observed function."
-            :labels [:fn]}))
+           {:description "the total number of finished runs of the observed function."
+            :labels [:fn :result]}))
        (reduce prometheus/register registry)))
 
 ;; ## Constructor
 
-(defn instrument*
+(defn instrument!*
   [registry fn-name fn-var options]
   [{:pre [(string? fn-name) (var? fn-var)]}]
   (instrument-function! registry fn-name fn-var options)
   registry)
 
-(defn instrument
-  "In"
+(defn instrument!
   ([registry fn-var]
-   (instrument registry fn-var {}))
+   (instrument! registry fn-var {}))
   ([registry fn-var
     {:keys [duration?
             last-failure?
@@ -110,4 +104,4 @@
             success-count?
             total-count?]
      :as options}]
-   (instrument* registry (subs (str fn-var) 2) fn-var options)))
+   (instrument!* registry (subs (str fn-var) 2) fn-var options)))
