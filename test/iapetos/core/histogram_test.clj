@@ -51,7 +51,7 @@
                            ops)]
       (doseq [{:keys [f]} ops]
         (f registry metric))
-      (is (= expected-value (prometheus/value (registry metric)))))))
+      (= expected-value (prometheus/value (registry metric))))))
 
 ;; ## Summary w/ Labels
 
@@ -86,7 +86,7 @@
                            ops)]
       (doseq [{:keys [f]} ops]
         (f registry metric))
-      (is (= expected-value (prometheus/value (registry metric labels)))))))
+      (= expected-value (prometheus/value (registry metric labels))))))
 
 ;; ## Histogram Timer
 
