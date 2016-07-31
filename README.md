@@ -180,7 +180,9 @@ error or `with-duration` to track execution time:
     (run-worker! task)))
 ```
 
-See the auto-generated documentation for all available macros.
+See the auto-generated documentation for all available macros or the [function
+instrumentation](#function-instrumentation) section below on how to easily wrap
+them around existing functions.
 
 ### JVM Metrics
 
