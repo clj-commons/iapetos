@@ -14,7 +14,8 @@
     (if (keyword? v)
       (name v)
       (str v))
-    #"[.\-_]+" "_"))
+    #"([^a-zA-Z0-9]|[\-_\.])+"
+    "_"))
 
 (defn dasherize
   [v]
@@ -22,7 +23,8 @@
     (if (keyword? v)
       (name v)
       (str v))
-    #"[.\-_]+" "-"))
+    #"([^a-zA-Z0-9]|[\-_\.])+"
+    "-"))
 
 ;; ## Implementation
 
@@ -42,7 +44,7 @@
   (metric-name [{:keys [name namespace]}]
     {:pre [name]}
     {:name (underscore name)
-     :namespace (or namespace "default")})
+     :namespace (or (some-> namespace underscore) "default")})
 
   String
   (metric-name [s]
