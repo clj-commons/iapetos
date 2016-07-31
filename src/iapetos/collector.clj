@@ -23,7 +23,7 @@
 (defn- label-array
   ^"[Ljava.lang.String;"
   [labels]
-  (into-array String (map metric/underscore labels)))
+  (into-array String (map metric/sanitize labels)))
 
 (defn- label-names
   [labels]

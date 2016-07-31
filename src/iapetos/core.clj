@@ -46,7 +46,7 @@
    not have access to any of the original registry's collectors."
   [registry subsystem-name]
   {:pre [subsystem-name]}
-  (registry/subsystem registry (metric/underscore subsystem-name)))
+  (registry/subsystem registry (metric/sanitize subsystem-name)))
 
 ;; ## Collectors
 

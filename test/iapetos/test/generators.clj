@@ -9,14 +9,21 @@
        (gen/not-empty)
        (gen/fmap #(apply str %))))
 
-(def metric-namespace
-  (gen/not-empty gen/string-ascii))
-
 (def metric-string
-  (gen/let [name-parts (gen/not-empty (gen/vector gen/string-ascii))
-            separators (gen/vector separator (count name-parts))]
+  (gen/let [first-char gen/char-alpha
+            last-char  gen/char-alpha-numeric
+            rest-chars gen/string-ascii]
     (gen/return
-      (apply str (interleave name-parts separators)))))
+      (str
+        (apply str first-char rest-chars)
+        last-char))))
+
+(def invalid-metric-string
+  (->> (gen/tuple gen/nat (gen/vector separator))
+       (gen/fmap #(apply str (first %) (rest %)))))
+
+(def metric-namespace
+  metric-string)
 
 (def metric-keyword
   (gen/let [namespace metric-namespace

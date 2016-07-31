@@ -9,17 +9,26 @@
 
 (defspec t-dasherize 100
   (prop/for-all
-    [s (gen/not-empty gen/string-ascii)]
+    [s g/metric-string]
     (let [result (metric/dasherize s)]
       (and (<= (count result) (count s))
-           (re-matches #"[a-zA-Z0-9\-]+" result)))))
+           (re-matches #"[a-zA-Z0-9\-]*" result)))))
 
-(defspec t-underscore 100
+(defspec t-sanitize 100
   (prop/for-all
-    [s (gen/not-empty gen/string-ascii)]
-    (let [result (metric/underscore s)]
+    [s g/metric-string]
+    (let [result (metric/sanitize s)]
       (and (<= (count result) (count s))
-           (re-matches #"[a-zA-Z0-9_]+" result)))))
+           (re-matches #"[a-zA-Z0-9_]*" result)))))
+
+(defspec t-sanitize-exception 100
+  (prop/for-all
+    [s g/invalid-metric-string]
+    (= (try
+         (metric/sanitize s)
+         (catch AssertionError e
+           :error))
+       :error)))
 
 (defspec t-metric-name 100
   (prop/for-all
