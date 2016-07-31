@@ -62,9 +62,10 @@
   "Enable function instrumentalization by registering the metric collectors.
    Metrics include:
 
-   - `fn_duration_seconds`
-   - `fn_last_failure_unixtime`
-   - `fn_runs_total`
+   - `fn_duration_seconds`: a histogram of execution duration,
+   - `fn_last_failure_unixtime`: a gauge with the last failure timestamp,
+   - `fn_runs_total`: a counter for fn runs, split by success/failure,
+   - `fn_exceptions_total`: a counter for fn exceptions, split by class.
    "
   [registry]
   (->> (vector
@@ -99,6 +100,7 @@
    (instrument! registry fn-var {}))
   ([registry fn-var
     {:keys [fn-name
+            exceptions?
             duration?
             last-failure?
             run-count?]
