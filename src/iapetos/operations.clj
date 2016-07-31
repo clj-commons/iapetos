@@ -85,9 +85,11 @@
   ReadableCollector
   (read-value [this]
     (let [^io.prometheus.client.Histogram$Child$Value value
-          (.get ^Histogram$Child this)]
+          (.get ^Histogram$Child this)
+          buckets (vec (.-buckets value))]
       {:sum     (.-sum value)
-       :buckets (vec (.-buckets value))}))
+       :count   (last buckets)
+       :buckets buckets}))
 
   ObservableCollector
   (observe [this amount]
