@@ -106,19 +106,22 @@
   (fn [request]
     (run-instrumented registry handler request)))
 
-(defn wrap-metrics
+(defn wrap-metrics-expose
   "Expose Prometheus metrics at the given constant URI using the text format."
   [handler registry
    & [{:keys [metrics-uri]
-       :or {metric-uri "/metrics"}}]]
+       :or {metrics-uri "/metrics"}}]]
   (fn [{:keys [uri] :as request}]
     (if (= uri metrics-uri)
       (metrics-response registry)
       (handler request))))
 
-(defn wrap
-  "A combination of [[wrap-instrumentation]] and [[wrap-metrics]]."
-  [handler registry & [options]]
+(defn wrap-metrics
+  "A combination of [[wrap-instrumentation]] and [[wrap-metrics-expose]]."
+  [handler registry
+   & [{:keys [metrics-uri]
+       :or {metrics-uri "/metrics"}
+       :as options}]]
   (-> handler
       (wrap-instrumentation registry)
       (wrap-metrics registry options)))

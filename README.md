@@ -265,7 +265,6 @@ Afterwards, you can add the middlewares to your Ring stack:
 ```clojure
 (def app
   (-> (constantly {:status 200})
-      (ring/wrap-instrumentation registry)
       (ring/wrap-metrics registry {:metrics-uri "/metrics"})))
 ```
 
