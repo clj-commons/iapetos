@@ -1,7 +1,8 @@
 (ns iapetos.collector.fn
   (:require [iapetos.collector :as collector]
             [iapetos.core :as prometheus]
-            [iapetos.metric :as metric])
+            [iapetos.metric :as metric]
+            [iapetos.collector.exceptions :as ex])
   (:import [io.prometheus.client CollectorRegistry]))
 
 ;; ## Instrumentation
@@ -25,9 +26,11 @@
    registry. See [[initialize]]."
   [f registry fn-name
    {:keys [duration?
+           exceptions?
            last-failure?
            run-count?]
     :or {duration? true
+         exceptions? true
          last-failure? true
          run-count? true}}]
   (let [labels {:fn fn-name, :result "success"}
@@ -36,6 +39,8 @@
       f
       duration?      (prometheus/with-duration
                        (registry :fn/duration-seconds labels))
+      exceptions?    (ex/with-exceptions
+                       (registry :fn/exceptions-total labels))
       last-failure?  (prometheus/with-failure-timestamp
                        (registry :fn/last-failure-unixtime labels))
       run-count?     (prometheus/with-failure-counter
@@ -74,7 +79,11 @@
          (prometheus/counter
            :fn/runs-total
            {:description "the total number of finished runs of the observed function."
-            :labels [:fn :result]}))
+            :labels [:fn :result]})
+         (ex/exception-counter
+           :fn/exceptions-total
+           {:description "the total number and type of exceptions for the observed function."
+            :labels [:fn]}))
        (reduce prometheus/register registry)))
 
 ;; ## Constructor

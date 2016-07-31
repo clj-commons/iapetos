@@ -33,6 +33,8 @@
           val-of #(prometheus/value registry %1 (into {:fn "f"} %2))]
       (and (<= 0.1 (:sum (val-of :fn/duration-seconds {})) delta)
            (= 5.0 (:count (val-of :fn/duration-seconds {})))
+           (or (= type :success)
+               (= 5.0 (val-of :fn/exceptions-total {:exceptionClass "java.lang.Exception"})))
            (or (= type :failure)
                (= 5.0 (val-of :fn/runs-total {:result "success"})))
            (or (= type :success)
@@ -68,6 +70,8 @@
                     (into {:fn "iapetos.collector.fn-test/test-fn"} %2))]
       (and (<= 0.1 (:sum (val-of :fn/duration-seconds {})) delta)
            (= 5.0 (:count (val-of :fn/duration-seconds {})))
+           (or (= type :success)
+               (= 5.0 (val-of :fn/exceptions-total {:exceptionClass "java.lang.Exception"})))
            (or (= type :failure)
                (= 5.0 (val-of :fn/runs-total {:result "success"})))
            (or (= type :success)
