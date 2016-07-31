@@ -26,11 +26,9 @@
   [f registry fn-name
    {:keys [duration?
            last-failure?
-           attempt-count?
            run-count?]
     :or {duration? true
          last-failure? true
-         attempt-count? false
          run-count? true}}]
   (let [labels {:fn fn-name, :result "success"}
         failure-labels (assoc labels :result "failure")]
@@ -43,9 +41,7 @@
       run-count?     (prometheus/with-failure-counter
                        (registry :fn/runs-total failure-labels))
       run-count?     (prometheus/with-success-counter
-                       (registry :fn/runs-total labels))
-      attempt-count? (prometheus/with-counter
-                       (registry :fn/attempts-total labels)))))
+                       (registry :fn/runs-total labels)))))
 
 (defn- instrument-function!
   [registry fn-name fn-var options]
@@ -63,7 +59,6 @@
 
    - `fn_duration_seconds`
    - `fn_last_failure_unixtime`
-   - `fn_attempts_total`
    - `fn_runs_total`
    "
   [registry]
@@ -75,10 +70,6 @@
          (prometheus/gauge
            :fn/last-failure-unixtime
            {:description "the UNIX timestamp of the last time the observed function threw an exception."
-            :labels [:fn]})
-         (prometheus/counter
-           :fn/attempts-total
-           {:description "the total number of attempted runs of the observed function."
             :labels [:fn]})
          (prometheus/counter
            :fn/runs-total

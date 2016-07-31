@@ -328,11 +328,6 @@
        (finally
          (inc ~collector)))))
 
-(defmacro with-start-counter
-  "Wrap the given block to increment the given counter once it is entered."
-  [collector & body]
-  `(do (inc ~collector) ~@body))
-
 (defmacro with-success-counter
   "Wrap the given block to increment the given counter once it has run
    successfully."
@@ -357,11 +352,12 @@
    - `:success`: incremented when the block has executed successfully,
    - `:failure`: incremented when the block has thrown an exception.
    "
-  [{:keys [total success failure]} & body]
+  [{:keys [total success failure] :as counters} & body]
+  {:pre [(map? counters)]}
   (cond->> `(do ~@body)
     failure (list `with-failure-counter failure)
     success (list `with-success-counter success)
-    total   (list `with-start-counter total)))
+    total   (list `with-counter total)))
 
 (defmacro with-activity-counter
   "Wrap the given block to increment the given collector once it is entered
