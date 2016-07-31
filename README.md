@@ -1,4 +1,4 @@
-# iapetos
+# iapetos [![Build Status](https://travis-ci.org/xsc/iapetos.svg?branch=master)](https://travis-ci.org/xsc/iapetos)
 
 __iapetos__ is a Clojure wrapper around the [Prometheus Java
 Client][java-client].
