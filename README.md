@@ -166,6 +166,22 @@ collectors.)
 
 ## Features
 
+### Code Block Instrumentation
+
+[__Documentation__](https://xsc.github.io/iapetos/iapetos.core.html)
+
+iapetos provides a number of macros that you can use to instrument parts of your
+code, e.g. `with-failure-timestamp` to record the last time a task has thrown an
+error or `with-duration` to track execution time:
+
+```clojure
+(prometheus/with-failure-timestamp (registry :app/last-worker-failure-unixtime)
+  (prometheus/with-duration (registry :app/worker-latency-seconds)
+    (run-worker! task)))
+```
+
+See the auto-generated documentation for all available macros.
+
 ### JVM Metrics
 
 [__Documentation__](https://xsc.github.io/iapetos/iapetos.collector.jvm.html)
