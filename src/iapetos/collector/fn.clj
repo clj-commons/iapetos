@@ -79,9 +79,9 @@
 
 ;; ## Constructor
 
-(defn instrument!*
+(defn- instrument!*
   [registry fn-name fn-var options]
-  [{:pre [(string? fn-name) (var? fn-var)]}]
+  {:pre [(string? fn-name) (var? fn-var)]}
   (instrument-function! registry fn-name fn-var options)
   registry)
 
@@ -89,10 +89,10 @@
   ([registry fn-var]
    (instrument! registry fn-var {}))
   ([registry fn-var
-    {:keys [duration?
+    {:keys [fn-name
+            duration?
             last-failure?
-            failure-count?
-            success-count?
-            total-count?]
+            run-count?]
+     :or {fn-name (subs (str fn-var) 2)}
      :as options}]
-   (instrument!* registry (subs (str fn-var) 2) fn-var options)))
+   (instrument!* registry fn-name fn-var options)))
