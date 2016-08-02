@@ -1,5 +1,6 @@
 (ns iapetos.test.generators
-  (:require [clojure.test.check.generators :as gen]))
+  (:require [clojure.test.check.generators :as gen]
+            [iapetos.core :as prometheus]))
 
 ;; ## Metric
 
@@ -44,3 +45,26 @@
      metric-map
      metric-string
      metric-vector]))
+
+;; ## Registry
+
+(defn registry
+  [& initializers]
+  (gen/let [registry-name metric-string]
+    (gen/return
+      (reduce
+        #(%2 %1)
+        (prometheus/collector-registry registry-name)
+        initializers))))
+
+;; ## Collector
+
+(defn collector
+  ([collector-fn]
+   (collector collector-fn (registry)))
+  ([collector-fn registry-gen]
+   (gen/let [metric   metric
+             registry registry-gen]
+     (let [collector (collector-fn metric)
+           registry (prometheus/register registry collector)]
+       (gen/return (registry metric))))))

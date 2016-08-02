@@ -11,10 +11,7 @@
 ;; ## Generators
 
 (def gen-fn-registry
-  (gen/let [registry-name g/metric-string]
-    (gen/return
-      (-> (prometheus/collector-registry)
-          (fn/initialize)))))
+  (g/registry fn/initialize))
 
 ;; ## Tests
 
