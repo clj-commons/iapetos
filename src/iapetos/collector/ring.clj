@@ -49,6 +49,12 @@
      :labels [:method :path]}))
 
 (defn initialize
+  "Initialize all collectors for Ring handler instrumentation. This includes:
+
+   - `http_request_latency_seconds`
+   - `http_requests_total`
+   - `http_exceptions_total`
+   "
   [registry
    & [{:keys [latency-histogram-buckets]
        :or {latency-histogram-buckets [0.001 0.005 0.01 0.02 0.05 0.1 0.2 0.3 0.5 0.75 1 5]}}]]
@@ -61,6 +67,8 @@
 ;; ## Response
 
 (defn metrics-response
+  "Create a Ring response map describing the given collector registry's contents
+   using the text format (version 4)."
   [registry]
   {:status 200
    :headers {"Content-Type" TextFormat/CONTENT_TYPE_004}
