@@ -1,6 +1,7 @@
 (ns iapetos.collector.ring
   (:require [iapetos.core :as prometheus]
             [iapetos.export :as export]
+            [iapetos.collector.exceptions :as ex]
             [clojure.string :as string])
   (:import [io.prometheus.client.exporter.common TextFormat]))
 
@@ -40,6 +41,13 @@
     {:description "the total number of HTTP requests processed."
      :labels [:method :status :statusClass :path]}))
 
+(defn- make-exception-collector
+  []
+  (ex/exception-counter
+    :http/exceptions-total
+    {:description "the total number of exceptions encountered during HTTP processing."
+     :labels [:method :path]}))
+
 (defn initialize
   [registry
    & [{:keys [latency-histogram-buckets]
@@ -47,81 +55,100 @@
   (prometheus/register
     registry
     (make-latency-collector latency-histogram-buckets)
-    (make-count-collector)))
+    (make-count-collector)
+    (make-exception-collector)))
 
 ;; ## Response
 
 (defn metrics-response
   [registry]
   {:status 200
-   :headers {"content-type" TextFormat/CONTENT_TYPE_004}
+   :headers {"Content-Type" TextFormat/CONTENT_TYPE_004}
    :body    (export/text-format registry)})
 
 ;; ## Middlewares
 
+;; ### Latency/Count
+
 (defn- ensure-response-map
-  [success? response]
-  (cond (not success?)           {:status 500}
-        (nil? response)          {:status 404}
+  [response]
+  (cond (nil? response)          {:status 404}
         (not (map? response))    {:status 200}
         (not (:status response)) (assoc response :status 200)
         :else response))
 
+(defn- status-class
+  [{:keys [status]}]
+  (str (quot status 100) "XX"))
+
+(defn- status
+  [{:keys [status]}]
+  (str status))
+
 (defn- record-metrics!
-  [registry delta {:keys [request-method uri]} {:keys [status]}]
-  (let [status-class (str (quot status 100) "XX")
-        labels {:method      (-> request-method name string/upper-case)
-                :status      (str status)
-                :statusClass (str status-class)
-                :path        uri}
+  [registry delta {:keys [request-method ::path]} response]
+  (let [labels {:method      (-> request-method name string/upper-case)
+                :status      (status response)
+                :statusClass (status-class response)
+                :path        path}
         delta-in-seconds (/ delta 1e9)]
     (-> registry
         (prometheus/inc     :http/requests-total labels)
         (prometheus/observe :http/request-latency-seconds labels delta-in-seconds))))
 
+(defn- exception-counter-for
+  [registry {:keys [request-method ::path]}]
+  (let [labels {:method (-> request-method name string/upper-case)
+                :path   path}]
+    (registry :http/exceptions-total labels)))
+
 (defn- run-instrumented
   [registry handler request]
-  (let [start-time (System/nanoTime)
-        [success? result] (try
-                            [true (handler request)]
-                            (catch Throwable t
-                              [false t]))
-        delta (- (System/nanoTime) start-time)]
-    (->> result
-         (ensure-response-map success?)
-         (record-metrics! registry delta request))
-    (if success?
-      result
-      (throw result))))
+  (ex/with-exceptions (exception-counter-for registry request)
+    (let [start-time (System/nanoTime)
+          response (handler request)
+          delta (- (System/nanoTime) start-time)]
+      (->> (ensure-response-map response)
+           (record-metrics! registry delta request))
+      response)))
 
 (defn wrap-instrumentation
   "Wrap the given Ring handler to write metrics to the given registry:
 
    - `http_requests_total`
    - `http_request_latency_seconds`
+   - `http_exceptions_total`
 
    Note that you have to call [[initialize]] on your registry first, to register
    the necessary collectors."
-  [handler registry]
+  [handler registry
+   & [{:keys [path-fn] :or {path-fn :uri}}]]
   (fn [request]
-    (run-instrumented registry handler request)))
+    (->> (assoc request ::path (path-fn request))
+         (run-instrumented registry handler))))
+
+;; ### Metrics Endpoint
 
 (defn wrap-metrics-expose
   "Expose Prometheus metrics at the given constant URI using the text format."
   [handler registry
-   & [{:keys [metrics-uri]
-       :or {metrics-uri "/metrics"}}]]
-  (fn [{:keys [uri] :as request}]
-    (if (= uri metrics-uri)
-      (metrics-response registry)
+   & [{:keys [path]
+       :or {path "/metrics"}}]]
+  (fn [{:keys [request-method uri] :as request}]
+    (if (= uri path)
+      (if (= request-method :get)
+        (metrics-response registry)
+        {:status 405})
       (handler request))))
+
+;; ### Compound Middleware
 
 (defn wrap-metrics
   "A combination of [[wrap-instrumentation]] and [[wrap-metrics-expose]]."
   [handler registry
-   & [{:keys [metrics-uri]
-       :or {metrics-uri "/metrics"}
+   & [{:keys [path]
+       :or {path "/metrics"}
        :as options}]]
   (-> handler
       (wrap-instrumentation registry)
-      (wrap-metrics registry options)))
+      (wrap-metrics-expose registry options)))

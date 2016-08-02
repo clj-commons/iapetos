@@ -265,14 +265,15 @@ Afterwards, you can add the middlewares to your Ring stack:
 ```clojure
 (def app
   (-> (constantly {:status 200})
-      (ring/wrap-metrics registry {:metrics-uri "/metrics"})))
+      (ring/wrap-metrics registry {:path "/metrics"})))
 ```
 
-The following metrics will now be collected and exposed via the `/metrics`
+The following metrics will now be collected and exposed via the `GET /metrics`
 endpoint:
 
 - `http_requests_total`
 - `http_request_latency_seconds`
+- `http_exceptions_total`
 
 These are, purposefully, compatible with the metrics produced by
 [prometheus-clj](https://github.com/soundcloud/prometheus-clj), as to allow a
