@@ -279,6 +279,24 @@ These are, purposefully, compatible with the metrics produced by
 [prometheus-clj](https://github.com/soundcloud/prometheus-clj), as to allow a
 smooth migration.
 
+### Standalone HTTP Server
+
+[__Documentation__](https://xsc.github.io/iapetos/iapetos.standalone.html)
+
+A zero-dependency standalone HTTP server is included in `iapetos.standalone`
+and can be run using:
+
+```clojure
+(require '[iapetos.standalone :as standalone])
+
+(defonce httpd
+  (standalone/metrics-server registry {:port 8080}))
+```
+
+This is particularly useful for applications that do not expose an HTTP port
+themselves but shall still be scraped by Prometheus. By default, metrics will
+be exposed at `/metrics`.
+
 ## License
 
 ```
