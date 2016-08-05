@@ -50,7 +50,7 @@
 
 ;; ## Initialize
 
-(defn initialze
+(defn initialize
   "Attach all available JVM collectors to the given registry."
   [registry]
   (-> registry
