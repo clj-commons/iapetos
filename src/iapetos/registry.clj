@@ -28,6 +28,12 @@
   (let [{:keys [name namespace]} (metric/metric-name metric)]
     [namespace subsystem name]))
 
+(defn- join-subsystem
+  [old-subsystem subsystem]
+  (if (seq old-subsystem)
+    (metric/sanitize (str old-subsystem "_" subsystem))
+    subsystem))
+
 (deftype IapetosRegistry [registry-name registry options metrics]
   Registry
   (register [_ metric collector]
@@ -42,7 +48,7 @@
     (IapetosRegistry.
       registry-name
       registry
-      (assoc options :subsystem subsystem-name)
+      (update options :subsystem join-subsystem subsystem-name)
       {}))
   (get [_ metric labels]
     (let [path (metric->path metric options)]

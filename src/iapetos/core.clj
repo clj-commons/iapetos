@@ -43,7 +43,10 @@
 
 (defn subsystem
   "Create a new registry bound to the given subsystem. The resulting value will
-   not have access to any of the original registry's collectors."
+   not have access to any of the original registry's collectors.
+
+   Subsystems can be nested, resulting in joining the subsystem names with
+   underscores."
   [registry subsystem-name]
   {:pre [subsystem-name]}
   (registry/subsystem registry (metric/sanitize subsystem-name)))

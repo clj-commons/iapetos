@@ -41,6 +41,17 @@
 
 ;; ## Record
 
+(defn- check-subsystem
+  [{subsystem :subsystem} {subsystem' :subsystem}]
+  (when (and subsystem subsystem' (not= subsystem subsystem'))
+    (throw
+      (IllegalArgumentException.
+        (format
+          "collector subsystem (%s) is conflicting with registry subsystem (%s)."
+          (pr-str subsystem')
+          (pr-str subsystem)))))
+  (or subsystem subsystem'))
+
 (defrecord SimpleCollectorImpl [type
                                 namespace
                                 name
@@ -52,7 +63,7 @@
                                 lazy?]
   Collector
   (instantiate [this registry registry-options]
-    (let [subsystem (or (:subsystem this) (:subsystem registry-options))
+    (let [subsystem (check-subsystem this registry-options)
           deferred-collector (delay
                                (-> ^SimpleCollector$Builder
                                    (builder-constructor)
