@@ -20,6 +20,7 @@
                       :output-path "doc"
                       :namespaces [iapetos.core
                                    iapetos.export
+                                   iapetos.standalone
                                    #"^iapetos\.collector\..+"]}}}
   :aliases {"codox" ["with-profile" "+codox" "codox"]}
   :pedantic? :abort)
