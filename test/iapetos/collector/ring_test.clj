@@ -42,11 +42,12 @@
 
 (defspec t-wrap-instrumentation 100
   (prop/for-all
-    [registry                            (g/registry ring/initialize)
+    [registry-fn                         (g/registry-fn ring/initialize)
      {:keys [handler exception? labels]} gen-handler
      {labels' :labels, :as request}      gen-request
      wrap (gen/elements [ring/wrap-instrumentation ring/wrap-metrics])]
-    (let [handler'   (wrap handler registry)
+    (let [registry   (registry-fn)
+          handler'   (wrap handler registry)
           start-time (System/nanoTime)
           response   (try
                        (handler' request)
@@ -70,10 +71,11 @@
 
 (defspec t-wrap-metrics-expose 10
   (prop/for-all
-    [registry (g/registry ring/initialize)
-     path     (gen/fmap #(str "/" %) gen/string-alpha-numeric)
-     wrap     (gen/elements [ring/wrap-metrics-expose ring/wrap-metrics])]
-    (let [handler (-> (constantly {:status 200})
+    [registry-fn (g/registry-fn ring/initialize)
+     path        (gen/fmap #(str "/" %) gen/string-alpha-numeric)
+     wrap        (gen/elements [ring/wrap-metrics-expose ring/wrap-metrics])]
+    (let [registry (registry-fn)
+          handler (-> (constantly {:status 200})
                       (wrap registry {:path path}))]
       (and (= {:status 200}
               (handler {:request-method :get,  :uri (str path "__/health")}))

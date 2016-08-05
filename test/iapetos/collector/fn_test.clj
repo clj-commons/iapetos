@@ -11,17 +11,18 @@
 ;; ## Generators
 
 (def gen-fn-registry
-  (g/registry fn/initialize))
+  (g/registry-fn fn/initialize))
 
 ;; ## Tests
 
 (defspec t-wrap-instrumentation 10
   (prop/for-all
-    [registry gen-fn-registry
-     [type f] (gen/elements
-                [[:success #(Thread/sleep 20)]
-                 [:failure #(do (Thread/sleep 20) (throw (Exception.)))]])]
-    (let [f' (fn/wrap-instrumentation f registry "f" {})
+    [registry-fn gen-fn-registry
+     [type f]   (gen/elements
+                  [[:success #(Thread/sleep 20)]
+                   [:failure #(do (Thread/sleep 20) (throw (Exception.)))]])]
+    (let [registry (registry-fn)
+          f' (fn/wrap-instrumentation f registry "f" {})
           start-time (System/currentTimeMillis)
           start (System/nanoTime)
           _  (dotimes [_ 5] (try (f') (catch Throwable _)))
@@ -50,13 +51,14 @@
 
 (defspec t-instrument! 10
   (prop/for-all
-    [registry gen-fn-registry
-     [type f] (gen/elements
-                [[:success #(Thread/sleep 20)]
-                 [:failure #(do (Thread/sleep 20) (throw (Exception.)))]])]
+    [registry-fn gen-fn-registry
+     [type f]    (gen/elements
+                   [[:success #(Thread/sleep 20)]
+                    [:failure #(do (Thread/sleep 20) (throw (Exception.)))]])]
     (reset-test-fn! f)
-    (fn/instrument! registry #'test-fn)
-    (let [start-time (System/currentTimeMillis)
+    (let [registry (doto (registry-fn)
+                     (fn/instrument! #'test-fn))
+          start-time (System/currentTimeMillis)
           start (System/nanoTime)
           _  (dotimes [_ 5] (try (test-fn) (catch Throwable _)))
           end-time (System/currentTimeMillis)
