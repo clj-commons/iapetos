@@ -108,11 +108,11 @@ something like:
 
 ```clojure
 (export/with-push-gateway [registry {:push-gateway "...", :job "..."}]
-  (run-job!
-    (-> registry
-        (prometheus/register
-          (prometheus/counter :app/rows-inserted-total)))
-    ...))
+  (-> registry
+      (prometheus/register
+        (prometheus/counter :app/rows-inserted-total)
+        ...)
+      (run-job! ...)))
 ```
 
 ### Labels
