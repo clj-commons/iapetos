@@ -66,6 +66,7 @@
    the given port and path.
 
    Returns a handle on the standalone server, implementing `java.io.Closeable`."
+  ^java.io.Closeable
   [registry & [{:keys [^long port
                        ^String path
                        ^long queue-size

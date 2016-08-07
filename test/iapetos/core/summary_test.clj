@@ -12,7 +12,7 @@
 (def gen-ops
   (gen/vector
     (gen/let [v (gen/double* {:infinite? false, :NaN? false})]
-      (let [amount (Math/abs v)
+      (let [amount (Math/abs ^double v)
             effect #(-> %
                         (update :count inc)
                         (update :sum   + amount))]
@@ -47,7 +47,7 @@
 (def gen-ops
   (gen/vector
     (gen/let [v (gen/double* {:infinite? false, :NaN? false})]
-      (let [amount (Math/abs v)
+      (let [amount (Math/abs ^double v)
             effect #(-> %
                         (update :count inc)
                         (update :sum   + amount))]

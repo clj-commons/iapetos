@@ -13,6 +13,7 @@
   :profiles {:dev
              {:dependencies [[org.clojure/test.check "0.9.0"]
                              [aleph "0.4.1"]]
+              :global-vars {*warn-on-reflection* true}}
              :codox
              {:plugins [[lein-codox "0.9.4"]]
               :codox {:project {:name "iapetos"}

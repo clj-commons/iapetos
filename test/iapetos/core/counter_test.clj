@@ -10,7 +10,7 @@
 
 (def gen-incrementers
   (gen/vector
-    (gen/let [amount (gen/fmap #(Math/abs %)
+    (gen/let [amount (gen/fmap #(Math/abs ^double %)
                                (gen/double* {:infinite? false, :NaN? false}))]
       (gen/elements
         [{:f      #(prometheus/inc %1 %2 amount)
@@ -45,7 +45,7 @@
 
 (def gen-incrementers-with-labels
   (gen/vector
-    (gen/let [amount (gen/fmap #(Math/abs %)
+    (gen/let [amount (gen/fmap #(Math/abs ^double %)
                                (gen/double* {:infinite? false, :NaN? false}))]
       (gen/elements
         [{:f      #(prometheus/inc %1 %2 labels amount)

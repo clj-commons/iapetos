@@ -12,7 +12,7 @@
 (def gen-ops
   (gen/vector
     (gen/let [v (gen/double* {:infinite? false, :NaN? false})]
-      (let [amount (Math/abs v)]
+      (let [amount (Math/abs ^double v)]
         (gen/elements
           [{:f      #(prometheus/inc %1 %2 amount)
             :form   '(inc registry metric ~amount)
@@ -71,7 +71,7 @@
 (def gen-ops-with-labels
   (gen/vector
     (gen/let [v (gen/double* {:infinite? false, :NaN? false})]
-      (let [amount (Math/abs v)]
+      (let [amount (Math/abs ^double v)]
         (gen/elements
           [{:f      #(prometheus/inc %1 %2 labels amount)
             :form   '(inc registry metric labels ~amount)
