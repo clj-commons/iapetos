@@ -68,7 +68,7 @@
 
 (defn metrics-response
   "Create a Ring response map describing the given collector registry's contents
-   using the text format (version 4)."
+   using the text format (version 0.0.4)."
   [registry]
   {:status 200
    :headers {"Content-Type" TextFormat/CONTENT_TYPE_004}

@@ -9,6 +9,7 @@
 ;; ## TextFormat (v0.0.4)
 
 (defn text-format
+  "Dump the given registry using the Prometheus text format (version 0.0.4)."
   [registry]
   (with-open [out (java.io.StringWriter.)]
     (TextFormat/write004
@@ -19,6 +20,8 @@
 ;; ## Push Gateway
 
 (defn push!
+  "Create a Prometheus text format representation of the given registry and
+   push it to the given gateway."
   [registry
    {:keys [gateway job grouping-key]
     :or {job          (registry/name registry)
