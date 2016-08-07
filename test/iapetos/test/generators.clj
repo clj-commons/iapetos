@@ -84,3 +84,14 @@
      (let [collector (collector-fn metric)
            registry (prometheus/register (registry-fn) collector)]
        (gen/return (registry metric))))))
+
+(def collectors
+  (gen/vector
+    (gen/let [metric metric
+              metric-fn (gen/elements
+                          [prometheus/counter
+                           prometheus/gauge
+                           prometheus/histogram
+                           prometheus/summary])]
+      (gen/return
+        (metric-fn metric)))))
