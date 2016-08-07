@@ -111,13 +111,12 @@
 
 (defmacro with-push
   "Use the given [[pushable-collector-registry]] to push metrics after the given
-   block of code has run."
+   block of code has run successfully."
   [registry & body]
-  `(let [r# ~registry]
-     (try
-       (do ~@body)
-       (finally
-         (push! r#)))))
+  `(let [r# ~registry
+         result# (do ~@body)]
+     (push! r#)
+     result#))
 
 (defmacro with-push-gateway
   "Create a [[pushable-collector-registry]], run the given block of code, then
