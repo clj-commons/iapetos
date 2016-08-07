@@ -53,7 +53,7 @@
 (defn exception-counter
   "Create a new exception counter.
 
-   Note that the label 'exceptionClass' will be automatically added."
+   Note that the label `exceptionClass` will be automatically added."
   [metric
    & [{:keys [description labels]
        :or {description "the number and class of encountered exceptions."}}]]
@@ -76,7 +76,17 @@
   "Use the given [[exception-counter]] to collect any Exceptions thrown within
    the given piece of code.
 
-   The exception class will be stored in the counter's 'exceptionClass' label."
+   ```
+   (defonce registry
+     (-> (prometheus/collector-registry)
+         (prometheus/register
+           (exeception-counter :app/exceptions-total))))
+
+   (with-exceptions (registry :app/exceptions-total)
+     ...)
+   ```
+
+   The exception class will be stored in the counter's `exceptionClass` label."
   [exception-counter & body]
   `(let [c# ~exception-counter]
      (try
