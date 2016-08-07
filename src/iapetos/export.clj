@@ -27,7 +27,7 @@
 
 ;; ### Protocol
 
-(defprotocol Pushable
+(defprotocol ^:private Pushable
   (push! [registry]
     "Push all metrics of the given registry."))
 
