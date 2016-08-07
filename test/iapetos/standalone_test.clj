@@ -2,8 +2,8 @@
   (:require [clojure.test :refer :all]
             [iapetos.core :as prometheus]
             [iapetos.export :as export]
-            [iapetos.standalone :as standalone])
-  (:import [java.net HttpURLConnection URL]))
+            [iapetos.standalone :as standalone]
+            [aleph.http :as http]))
 
 (def ^:private port 65432)
 (def ^:private path "/prometheus-metrics")
@@ -12,16 +12,12 @@
 
 (defn- fetch
   [request-method url]
-  (let [connection (.openConnection (URL. url))]
-    (try
-      (.setRequestMethod connection (.toUpperCase (name request-method)))
-      (let [status (.getResponseCode connection)
-            body (if (= status 200)
-                   (.getInputStream connection)
-                   (.getErrorStream connection))]
-        [status (slurp body)])
-      (finally
-        (.disconnect connection)))))
+  (-> (http/request
+        {:method            request-method
+         :throw-exceptions? false
+         :url               url})
+      (deref)
+      ((juxt :status (comp slurp :body)))))
 
 (deftest t-standalone-server
   (let [registry (-> (prometheus/collector-registry)

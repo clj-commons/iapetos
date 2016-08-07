@@ -11,7 +11,8 @@
                  [io.prometheus/simpleclient_pushgateway "0.0.15"]
                  [io.prometheus/simpleclient_hotspot "0.0.15" :scope "provided"]]
   :profiles {:dev
-             {:dependencies [[org.clojure/test.check "0.9.0"]]}
+             {:dependencies [[org.clojure/test.check "0.9.0"]
+                             [aleph "0.4.1"]]
              :codox
              {:plugins [[lein-codox "0.9.4"]]
               :codox {:project {:name "iapetos"}
