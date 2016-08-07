@@ -124,7 +124,7 @@
    push all collected metrics.
 
    ```
-   (with-pushable-registry [registry {:job \"my-job\", :push-gateway \"0:8080\"}]
+   (with-push-gateway [registry {:job \"my-job\", :push-gateway \"0:8080\"}]
      ...)
    ```"
   [[binding options] & body]
