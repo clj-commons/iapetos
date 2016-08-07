@@ -32,6 +32,7 @@
    {:keys [gateway job grouping-key]
     :or {job          (registry/name registry)
          grouping-key {}}}]
+  {:pre [gateway (string? job)]}
   (doto ^PushGateway (if (instance? PushGateway gateway)
                        gateway
                        (PushGateway. ^String gateway))
