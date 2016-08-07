@@ -143,7 +143,7 @@
 
 (defn- registry?
   [value]
-  (instance? iapetos.registry.IapetosRegistry value))
+  (instance? iapetos.registry.Registry value))
 
 (defn observe
   "Observe the given amount for the desired metric. This can be either called

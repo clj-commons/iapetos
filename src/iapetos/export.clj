@@ -25,18 +25,111 @@
 
 ;; ## Push Gateway
 
-(defn push!
-  "Create a Prometheus text format representation of the given registry and
-   push it to the given gateway."
-  [registry
-   {:keys [gateway job grouping-key]
-    :or {job          (registry/name registry)
-         grouping-key {}}}]
-  {:pre [gateway (string? job)]}
-  (doto ^PushGateway (if (instance? PushGateway gateway)
-                       gateway
-                       (PushGateway. ^String gateway))
+;; ### Protocol
+
+(defprotocol Pushable
+  (push! [registry]
+    "Push all metrics of the given registry."))
+
+;; ### Implementation
+
+(deftype PushableRegistry [internal-registry push-gateway grouping-key]
+  registry/Registry
+  (register [_ metric collector]
+    (PushableRegistry.
+      (registry/register internal-registry metric collector)
+      push-gateway
+      grouping-key))
+  (subsystem [_ subsystem-name]
+    (PushableRegistry.
+      (registry/subsystem internal-registry subsystem-name)
+      push-gateway
+      grouping-key))
+  (get [_ metric labels]
+    (registry/get internal-registry metric labels))
+  (raw [_]
+    (registry/raw internal-registry))
+  (name [_]
+    (registry/name internal-registry))
+
+  clojure.lang.IFn
+  (invoke [this k]
+    (registry/get internal-registry k {}))
+  (invoke [this k labels]
+    (registry/get internal-registry k labels))
+
+  Pushable
+  (push! [this]
     (.pushAdd
-      ^CollectorRegistry (registry/raw registry)
-      job
-      grouping-key)))
+      ^PushGateway       push-gateway
+      ^CollectorRegistry (registry/raw this)
+      ^String            (registry/name this)
+      ^java.util.Map     grouping-key)
+    this))
+
+(alter-meta! #'->PushableRegistry assoc :private true)
+
+;; ### Constructor
+
+(defn- as-push-gateway
+  ^io.prometheus.client.exporter.PushGateway
+  [gateway]
+  (if (instance? PushGateway gateway)
+    gateway
+    (PushGateway. ^String gateway)))
+
+(defn- as-grouping-key
+  [grouping-key]
+  (->> (for [[k v] grouping-key]
+         [(name k) (str v)])
+       (into {})))
+
+(defn pushable-collector-registry
+  "Create a fresh iapetos collector registry whose metrics can be pushed to the
+   specified gateway using [[push!]]."
+  [{:keys [job push-gateway grouping-key]}]
+  {:pre [(string? job) push-gateway]}
+  (->PushableRegistry
+    (registry/create job)
+    (as-push-gateway push-gateway)
+    (as-grouping-key grouping-key)))
+
+(defn push-registry!
+  "Directly push all metrics of the given registry to the given push gateway.
+   This can be used if you don't have control over registry creation, otherwise
+   [[pushable-collector-registry]] and [[push!]] are recommended."
+  [registry {:keys [push-gateway job grouping-key]}]
+  {:pre [(string? job) push-gateway]}
+  (.pushAdd
+    (as-push-gateway push-gateway)
+    ^CollectorRegistry (registry/raw registry)
+    ^String            job
+    ^java.util.Map     (as-grouping-key grouping-key))
+  registry)
+
+;; ### Macros
+
+(defmacro with-push
+  "Use the given [[pushable-collector-registry]] to push metrics after the given
+   block of code has run."
+  [registry & body]
+  `(let [r# ~registry]
+     (try
+       (do ~@body)
+       (finally
+         (push! r#)))))
+
+(defmacro with-push-gateway
+  "Create a [[pushable-collector-registry]], run the given block of code, then
+   push all collected metrics.
+
+   ```
+   (with-pushable-registry [registry {:job \"my-job\", :push-gateway \"0:8080\"}]
+     ...)
+   ```"
+  [[binding options] & body]
+  {:pre [binding (map? options)]}
+  `(let [r# (pushable-collector-registry ~options)]
+     (with-push r#
+       (let [~binding r#]
+         ~@body))))

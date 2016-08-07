@@ -6,7 +6,7 @@
 
 ;; ## Protocol
 
-(defprotocol ^:private Registry
+(defprotocol Registry
   "Protocol for the iapetos collector registry."
   (subsystem [registry subsystem-name]
     "Create a new registry that is bound to the given subsystem.")

@@ -81,11 +81,38 @@ Metrics can be transformed into a textual representation using
 ```
 
 This could now be exposed e.g. using an HTTP endpoint (see also iapetos'
-[Ring](#ring) integration). Alternatively, metrics can be pushed to the
-respective Prometheus `PushGateway` if applicable:
+[Ring](#ring) integration or the [standalone server](#standalone-http-server) ).
+
+### Metric Push
+
+[__Documentation__](https://xsc.github.io/iapetos/iapetos.export.html)
+
+Another way of communicating metrics to Prometheus is using push mechanics,
+intended to be used for e.g. batch jobs that might not live long enough to be
+scraped in time. Iapetos offers a special kind of registry for this:
 
 ```clojure
-(export/push! registry {:gateway "push-gateway:12345"})
+(require '[iapetos.export :as export])
+
+(defonce registry
+  (-> (export/pushable-collector-registry
+        {:push-gateway "push-gateway-host:12345"
+         :job          "my-batch-job"})
+      (prometheus/register ...)))
+...
+(export/push! registry)
+```
+
+Note that you can reduce the amount of boilerplate in most cases down to
+something like:
+
+```clojure
+(export/with-push-gateway [registry {:push-gateway "...", :job "..."}]
+  (run-job!
+    (-> registry
+        (prometheus/register
+          (prometheus/counter :app/rows-inserted-total)))
+    ...))
 ```
 
 ### Labels
