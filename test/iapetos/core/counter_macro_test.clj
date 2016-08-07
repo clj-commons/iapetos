@@ -37,8 +37,9 @@
   (gen/let [metric g/metric
             countable (gen/elements
                         [(prometheus/counter metric)
-                         (prometheus/gauge   metric)])]
-    (let [registry (-> (prometheus/collector-registry)
+                         (prometheus/gauge   metric)])
+            registry-fn (g/registry-fn)]
+    (let [registry (-> (registry-fn)
                        (prometheus/register countable))]
       (gen/return (registry metric)))))
 
@@ -85,24 +86,26 @@
          (= 7.0 (prometheus/value success-counter))
          (= 3.0 (prometheus/value failure-counter)))))
 
-(deftest t-with-activity-counter
-  (let [metric :app/activity-total
-        registry (-> (prometheus/collector-registry)
-                     (prometheus/register
-                       (prometheus/gauge metric)))
-        counter (registry metric)
-        start-promise (promise)
-        started-promise (promise)
-        finish-promise (promise)
-        job (future
-              @start-promise
-              (prometheus/with-activity-counter counter
-                (deliver started-promise true)
-                @finish-promise))]
-    (is (= 0.0 (prometheus/value counter)))
-    (deliver start-promise true)
-    @started-promise
-    (is (= 1.0 (prometheus/value counter)))
-    (deliver finish-promise true)
-    @job
-    (is (= 0.0 (prometheus/value counter)))))
+(defspec t-with-activity-counter 5
+  (prop/for-all
+    [registry-fn (g/registry-fn)]
+    (let [metric :app/activity-total
+          registry (-> (registry-fn)
+                       (prometheus/register
+                         (prometheus/gauge metric)))
+          counter (registry metric)
+          start-promise (promise)
+          started-promise (promise)
+          finish-promise (promise)
+          job (future
+                @start-promise
+                (prometheus/with-activity-counter counter
+                  (deliver started-promise true)
+                  @finish-promise))]
+      (is (= 0.0 (prometheus/value counter)))
+      (deliver start-promise true)
+      @started-promise
+      (is (= 1.0 (prometheus/value counter)))
+      (deliver finish-promise true)
+      @job
+      (is (= 0.0 (prometheus/value counter))))))

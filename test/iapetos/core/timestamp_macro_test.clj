@@ -11,8 +11,9 @@
 
 (def gen-gauge
   (gen/let [metric g/metric
-            labels (gen/map g/metric-string gen/string-alpha-numeric)]
-    (let [registry (-> (prometheus/collector-registry)
+            labels (gen/map g/metric-string gen/string-alpha-numeric)
+            registry-fn (g/registry-fn)]
+    (let [registry (-> (registry-fn)
                        (prometheus/register
                          (prometheus/gauge metric {:labels (keys labels)})))]
       (gen/return (registry metric labels)))))

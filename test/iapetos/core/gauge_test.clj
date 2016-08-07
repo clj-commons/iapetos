@@ -53,9 +53,10 @@
 
 (defspec t-gauge 100
   (prop/for-all
-    [metric g/metric
-     ops    gen-ops]
-    (let [registry (-> (prometheus/collector-registry)
+    [metric      g/metric
+     ops         gen-ops
+     registry-fn (g/registry-fn)]
+    (let [registry (-> (registry-fn)
                        (prometheus/register
                          (prometheus/gauge metric)))
           expected-value (double (reduce #((:effect %2) %1) 0.0 ops))]
@@ -112,9 +113,10 @@
 
 (defspec t-gauge-with-labels 100
   (prop/for-all
-    [metric g/metric
-     ops    gen-ops-with-labels]
-    (let [registry (-> (prometheus/collector-registry)
+    [metric      g/metric
+     ops         gen-ops-with-labels
+     registry-fn (g/registry-fn)]
+    (let [registry (-> (registry-fn)
                        (prometheus/register
                          (prometheus/gauge metric {:labels (keys labels)})))
           expected-value (double (reduce #((:effect %2) %1) 0.0 ops))]
@@ -133,9 +135,10 @@
 
 (defspec t-gauge-set-to-current-time 100
   (prop/for-all
-    [metric g/metric
-     op     gen-set-to-current-time-op]
-    (let [registry (-> (prometheus/collector-registry)
+    [metric      g/metric
+     op          gen-set-to-current-time-op
+     registry-fn (g/registry-fn)]
+    (let [registry (-> (registry-fn)
                        (prometheus/register
                          (prometheus/gauge metric)))
           before (System/currentTimeMillis)
@@ -145,13 +148,15 @@
 
 ;; ## Timer
 
-(deftest t-gauge-timer
-  (let [metric :app/duration-seconds
-        registry (-> (prometheus/collector-registry)
-                     (prometheus/register
-                       (prometheus/gauge metric)))
-        start      (System/nanoTime)
-        stop-timer (prometheus/start-timer registry metric)
-        _          (do (Thread/sleep 50) (stop-timer))
-        delta      (/ (- (System/nanoTime) start) 1e9)]
-    (is (<= 0.05 (prometheus/value (registry metric)) delta))))
+(defspec t-gauge-timer 5
+  (prop/for-all
+    [registry-fn (g/registry-fn)]
+    (let [metric :app/duration-seconds
+          registry (-> (registry-fn)
+                       (prometheus/register
+                         (prometheus/gauge metric)))
+          start      (System/nanoTime)
+          stop-timer (prometheus/start-timer registry metric)
+          _          (do (Thread/sleep 50) (stop-timer))
+          delta      (/ (- (System/nanoTime) start) 1e9)]
+      (is (<= 0.05 (prometheus/value (registry metric)) delta)))))

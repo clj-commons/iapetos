@@ -26,9 +26,10 @@
 
 (defspec t-summary 100
   (prop/for-all
-    [metric g/metric
-     ops    gen-ops]
-    (let [registry (-> (prometheus/collector-registry)
+    [metric      g/metric
+     ops         gen-ops
+     registry-fn (g/registry-fn)]
+    (let [registry (-> (registry-fn)
                        (prometheus/register
                          (prometheus/summary metric)))
           expected-value (reduce
@@ -61,9 +62,10 @@
 
 (defspec t-summary-with-labels 100
   (prop/for-all
-    [metric g/metric
-     ops    gen-ops]
-    (let [registry (-> (prometheus/collector-registry)
+    [metric      g/metric
+     ops         gen-ops
+     registry-fn (g/registry-fn)]
+    (let [registry (-> (registry-fn)
                        (prometheus/register
                          (prometheus/summary metric {:labels (keys labels)})))
           expected-value (reduce
@@ -76,15 +78,17 @@
 
 ;; ## Summary Timer
 
-(deftest t-summary-timer
-  (let [metric :app/duration-seconds
-        registry (-> (prometheus/collector-registry)
-                     (prometheus/register
-                       (prometheus/summary metric {:lazy? true})))
-        start      (System/nanoTime)
-        stop-timer (prometheus/start-timer registry metric)
-        _          (do (Thread/sleep 50) (stop-timer))
-        delta      (/ (- (System/nanoTime) start) 1e9)
-        {:keys [sum count]} (prometheus/value (registry metric))]
-    (is (= count 1.0))
-    (is (<= 0.05 sum delta))))
+(defspec t-summary-timer 5
+  (prop/for-all
+    [registry-fn (g/registry-fn)]
+    (let [metric :app/duration-seconds
+          registry (-> (registry-fn)
+                       (prometheus/register
+                         (prometheus/summary metric {:lazy? true})))
+          start      (System/nanoTime)
+          stop-timer (prometheus/start-timer registry metric)
+          _          (do (Thread/sleep 50) (stop-timer))
+          delta      (/ (- (System/nanoTime) start) 1e9)
+          {:keys [sum count]} (prometheus/value (registry metric))]
+      (is (= count 1.0))
+      (is (<= 0.05 sum delta)))))

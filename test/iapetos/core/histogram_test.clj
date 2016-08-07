@@ -40,9 +40,10 @@
 
 (defspec t-histogram 100
   (prop/for-all
-    [metric g/metric
-     ops    gen-ops]
-    (let [registry (-> (prometheus/collector-registry)
+    [metric      g/metric
+     ops         gen-ops
+     registry-fn (g/registry-fn)]
+    (let [registry (-> (registry-fn)
                        (prometheus/register
                          (prometheus/histogram metric {:buckets buckets})))
           expected-value (reduce
@@ -73,9 +74,10 @@
 
 (defspec t-histogram-with-labels 100
   (prop/for-all
-    [metric g/metric
-     ops    gen-ops]
-    (let [registry (-> (prometheus/collector-registry)
+    [metric      g/metric
+     ops         gen-ops
+     registry-fn (g/registry-fn)]
+    (let [registry (-> (registry-fn)
                        (prometheus/register
                          (prometheus/histogram
                            metric
@@ -90,18 +92,20 @@
 
 ;; ## Histogram Timer
 
-(deftest t-histogram-timer
-  (let [metric :app/duration-seconds
-        registry (-> (prometheus/collector-registry)
-                     (prometheus/register
-                       (prometheus/histogram
-                         metric
-                         {:buckets [0.01 0.05 0.5]})))
-        start      (System/nanoTime)
-        stop-timer (prometheus/start-timer registry metric)
-        _          (do (Thread/sleep 50) (stop-timer))
-        delta      (/ (- (System/nanoTime) start) 1e9)
-        {:keys [count sum buckets]} (prometheus/value (registry metric))]
-    (is (= 1.0 count))
-    (is (= [0.0 0.0 1.0 1.0] buckets))
-    (is (<= 0.05 sum delta))))
+(defspec t-histogram-timer 5
+  (prop/for-all
+    [registry-fn (g/registry-fn)]
+    (let [metric :app/duration-seconds
+          registry (-> (registry-fn)
+                       (prometheus/register
+                         (prometheus/histogram
+                           metric
+                           {:buckets [0.01 0.05 0.5]})))
+          start      (System/nanoTime)
+          stop-timer (prometheus/start-timer registry metric)
+          _          (do (Thread/sleep 50) (stop-timer))
+          delta      (/ (- (System/nanoTime) start) 1e9)
+          {:keys [count sum buckets]} (prometheus/value (registry metric))]
+      (is (= 1.0 count))
+      (is (= [0.0 0.0 1.0 1.0] buckets))
+      (is (<= 0.05 sum delta)))))

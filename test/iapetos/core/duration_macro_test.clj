@@ -14,8 +14,9 @@
             countable (gen/elements
                         [(prometheus/gauge     metric)
                          (prometheus/histogram metric)
-                         (prometheus/summary   metric)])]
-    (let [registry (-> (prometheus/collector-registry)
+                         (prometheus/summary   metric)])
+            registry-fn (g/registry-fn)]
+    (let [registry (-> (registry-fn)
                        (prometheus/register countable))]
       (gen/return
         (vector

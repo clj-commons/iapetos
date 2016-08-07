@@ -29,8 +29,9 @@
 (defspec t-counter 100
   (prop/for-all
     [metric       g/metric
-     incrementers gen-incrementers]
-    (let [registry (-> (prometheus/collector-registry)
+     incrementers gen-incrementers
+     registry-fn  (g/registry-fn)]
+    (let [registry (-> (registry-fn)
                        (prometheus/register
                          (prometheus/counter metric)))
           expected-value (double (reduce + (map :amount incrementers)))]
@@ -64,8 +65,9 @@
 (defspec t-counter-with-labels 100
   (prop/for-all
     [metric       g/metric
-     incrementers gen-incrementers-with-labels]
-    (let [registry (-> (prometheus/collector-registry)
+     incrementers gen-incrementers-with-labels
+     registry-fn  (g/registry-fn)]
+    (let [registry (-> (registry-fn)
                        (prometheus/register
                          (prometheus/counter metric {:labels (keys labels)})))
           expected-value (double (reduce + (map :amount incrementers)))]
