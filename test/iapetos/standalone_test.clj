@@ -35,11 +35,13 @@
                        (prometheus/register
                          (prometheus/counter :app/runs-total))
                        (prometheus/inc :app/runs-total))]
-      (with-open [_ (standalone/metrics-server
-                      registry
-                      {:port 65432
-                       :path "/prometheus-metrics"})]
-        (and (= [200 (export/text-format registry)] (fetch :get metrics-url))
+      (with-open [server (standalone/metrics-server
+                           registry
+                           {:port 65432
+                            :path "/prometheus-metrics"})]
+        (Thread/sleep 100)
+        (and (= port (:port server))
+             (= [200 (export/text-format registry)] (fetch :get metrics-url))
              (= [405 "Method not allowed: POST" (fetch :post metrics-url)])
              (= [404 (str "Not found: " path "/_info")]
                 (fetch :get (str metrics-url "/_info")))

@@ -79,7 +79,32 @@
                  (.bind (InetSocketAddress. port) queue-size)
                  (.createContext "/" handler)
                  (.setExecutor executor)
-                 (.start))]
-    (reify java.io.Closeable
+                 (.start))
+        address (.getAddress server)
+        data {:address address
+              :port    (.getPort address)
+              :host    (.getHostString address)}]
+    (reify Object
+      clojure.lang.ILookup
+      (valAt [_ k default]
+        (get data k default))
+      (valAt [this k]
+        (get data k))
+
+      java.util.Map
+      (keySet [_]
+        (.keySet ^java.util.Map data))
+      (entrySet [_]
+        (.entrySet ^java.util.Map data))
+      (values [_]
+        (vals data))
+      (isEmpty [_]
+        false)
+      (size [_]
+        (count data))
+      (get [_ k]
+        (get data k))
+
+      java.io.Closeable
       (close [_]
         (.stop server 0)))))
