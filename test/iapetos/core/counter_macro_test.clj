@@ -102,10 +102,10 @@
                 (prometheus/with-activity-counter counter
                   (deliver started-promise true)
                   @finish-promise))]
-      (is (= 0.0 (prometheus/value counter)))
-      (deliver start-promise true)
-      @started-promise
-      (is (= 1.0 (prometheus/value counter)))
-      (deliver finish-promise true)
-      @job
-      (is (= 0.0 (prometheus/value counter))))))
+      (and (= 0.0 (prometheus/value counter))
+           (deliver start-promise true)
+           @started-promise
+           (= 1.0 (prometheus/value counter))
+           (deliver finish-promise true)
+           @job
+           (= 0.0 (prometheus/value counter))))))

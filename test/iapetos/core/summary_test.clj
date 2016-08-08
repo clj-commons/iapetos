@@ -90,5 +90,5 @@
           _          (do (Thread/sleep 50) (stop-timer))
           delta      (/ (- (System/nanoTime) start) 1e9)
           {:keys [sum count]} (prometheus/value (registry metric))]
-      (is (= count 1.0))
-      (is (<= 0.05 sum delta)))))
+      (and (= count 1.0)
+           (<= 0.05 sum delta)))))

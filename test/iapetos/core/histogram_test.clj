@@ -106,6 +106,6 @@
           _          (do (Thread/sleep 50) (stop-timer))
           delta      (/ (- (System/nanoTime) start) 1e9)
           {:keys [count sum buckets]} (prometheus/value (registry metric))]
-      (is (= 1.0 count))
-      (is (= [0.0 0.0 1.0 1.0] buckets))
-      (is (<= 0.05 sum delta)))))
+      (and (= 1.0 count)
+           (= [0.0 0.0 1.0 1.0] buckets)
+           (<= 0.05 sum delta)))))
