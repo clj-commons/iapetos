@@ -1,5 +1,4 @@
 language: clojure
-script: lein2 test
 jdk:
   - openjdk7
   - oraclejdk7
