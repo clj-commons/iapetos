@@ -56,7 +56,6 @@
   [registry path]
   (reify HttpHandler
     (handle [_ e]
-      (Thread/sleep 100)
       (write-response! e registry path))))
 
 ;; ## Server
