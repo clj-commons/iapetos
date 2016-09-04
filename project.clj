@@ -15,11 +15,10 @@
                              [aleph "0.4.1"]]
               :global-vars {*warn-on-reflection* true}}
              :codox
-             {:plugins [[lein-codox "0.9.4"]]
+             {:plugins [[lein-codox "0.9.7"]]
               :codox {:project {:name "iapetos"}
                       :metadata {:doc/format :markdown}
                       :source-uri "https://github.com/xsc/iapetos/blob/v{version}/{filepath}#L{line}"
-                      :output-path "doc"
                       :namespaces [iapetos.core
                                    iapetos.export
                                    iapetos.standalone
