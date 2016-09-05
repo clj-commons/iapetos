@@ -3,7 +3,7 @@
   font-family: 'Raleway';
   font-style: normal;
   font-weight: 300;
-  src: local('Raleway Light'), local('Raleway-Light'), url(//fonts.gstatic.com/s/raleway/v11/ZKwULyCG95tk6mOqHQfRBAsYbbCjybiHxArTLjt7FRU.woff2) format('woff2');
+  src: local('Raleway Light'), local('Raleway-Light'), url(http://fonts.gstatic.com/s/raleway/v11/ZKwULyCG95tk6mOqHQfRBAsYbbCjybiHxArTLjt7FRU.woff2) format('woff2');
   unicode-range: U+0100-024F, U+1E00-1EFF, U+20A0-20AB, U+20AD-20CF, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -11,7 +11,7 @@
   font-family: 'Raleway';
   font-style: normal;
   font-weight: 300;
-  src: local('Raleway Light'), local('Raleway-Light'), url(//fonts.gstatic.com/s/raleway/v11/-_Ctzj9b56b8RgXW8FAriQzyDMXhdD8sAj6OAJTFsBI.woff2) format('woff2');
+  src: local('Raleway Light'), local('Raleway-Light'), url(http://fonts.gstatic.com/s/raleway/v11/-_Ctzj9b56b8RgXW8FAriQzyDMXhdD8sAj6OAJTFsBI.woff2) format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2212, U+2215, U+E0FF, U+EFFD, U+F000;
 }
 
@@ -284,6 +284,7 @@ h3 > a:hover {
     font-size: 16px;
     font-weight: bold;
     margin-bottom: 0;
+    letter-spacing: 0.05em;
 }
 
 .namespace-index .topics {
@@ -502,6 +503,20 @@ p {
     overflow-x: visible;
 }
 
+.markdown pre > code {
+    display: block;
+    padding: 10px;
+}
+
+.markdown pre > code, .src-link a {
+    border: 1px solid #e4e4e4;
+    border-radius: 2px;
+}
+
+.src-link a {
+    background: #f6f6f6;
+}
+
 .markdown code:not(.hljs) {
     color: #c7254e;
     background-color: #f9f2f4;
@@ -510,18 +525,13 @@ p {
     padding: 2px 4px;
 }
 
-.markdown code.hljs {
-    border: 1px solid #e4e4e4;
-    border-radius: 2px;
-    padding: 10px;
-}
-
 pre.deps {
     display: inline-block;
     margin: 0 10px;
     border: 1px solid #e4e4e4;
     border-radius: 2px;
     padding: 10px;
+    background-color: #f6f6f6;
 }
 
 .markdown hr {
@@ -580,4 +590,37 @@ pre.deps {
     text-decoration: none;
     color: #5555bb;
     background-color: #f6f6f6;
+}
+
+/* Responsivene Theme */
+
+@media (max-width: 860px) {
+  .sidebar {
+    display:none;
+  }
+
+  #content {
+    position: relative;
+    left: initial !important;
+    top: 66px;
+    padding: 0 3px;
+  }
+
+  #header {
+    display: flex;
+    flex-direction: column-reverse;
+    height: 58px;
+  }
+
+  #header > h1 {
+    font-size: 32px;
+  }
+
+  .namespace-index > h1 {
+    display: none;
+  }
+
+  #header h2 {
+    float: none;
+  }
 }
