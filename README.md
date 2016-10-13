@@ -9,8 +9,6 @@ tasks.
 
 ## Usage
 
-Don't. This is mostly me exploring Prometheus.
-
 __Leiningen__ ([via Clojars](https://clojars.org/iapetos))
 
 [![Clojars Project](https://img.shields.io/clojars/v/iapetos.svg)](https://clojars.org/iapetos)
