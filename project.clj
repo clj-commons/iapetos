@@ -16,7 +16,7 @@
               :global-vars {*warn-on-reflection* true}}
              :codox
              {:plugins [[lein-codox "0.10.0"]]
-              :dependencies [[codox-theme-rdash "0.1.0"]]
+              :dependencies [[codox-theme-rdash "0.1.1"]]
               :codox {:project {:name "iapetos"}
                       :metadata {:doc/format :markdown}
                       :themes [:rdash]
