@@ -128,7 +128,11 @@
    - `http_exceptions_total`
 
    Note that you have to call [[initialize]] on your registry first, to register
-   the necessary collectors."
+   the necessary collectors.
+
+   Be aware that you should implement `path-fn` (which generates the value for
+   the `:path` label) if you have any kind of ID in your URIs – since otherwise
+   there will be one timeseries created for each observed ID."
   [handler registry
    & [{:keys [path-fn] :or {path-fn :uri}}]]
   (fn [request]
@@ -152,11 +156,19 @@
 ;; ### Compound Middleware
 
 (defn wrap-metrics
-  "A combination of [[wrap-instrumentation]] and [[wrap-metrics-expose]]."
+  "A combination of [[wrap-instrumentation]] and [[wrap-metrics-expose]].
+
+   Note that you have to call [[initialize]] on your registry first, to register
+   the necessary collectors.
+
+   Be aware that you should implement `path-fn` (which generates the value for
+   the `:path` label) if you have any kind of ID in your URIs – since otherwise
+   there will be one timeseries created for each observed ID."
   [handler registry
-   & [{:keys [path]
-       :or {path "/metrics"}
+   & [{:keys [path path-fn]
+       :or {path    "/metrics"
+            path-fn :uri}
        :as options}]]
   (-> handler
-      (wrap-instrumentation registry)
+      (wrap-instrumentation registry options)
       (wrap-metrics-expose registry options)))
