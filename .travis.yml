@@ -1,4 +1,5 @@
 language: clojure
+sudo: required
 jdk:
   - openjdk7
   - oraclejdk7
