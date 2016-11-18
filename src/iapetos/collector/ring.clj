@@ -149,13 +149,13 @@
    the Prometheus scraper as a trigger for metrics collection."
   [handler registry
    & [{:keys [path on-request]
-       :or {path "/metrics"}}]]
+       :or {path       "/metrics"
+            on-request identity}}]]
   (fn [{:keys [request-method uri] :as request}]
     (if (= uri path)
       (if (= request-method :get)
         (do
-          (if on-request
-            (on-request registry))
+          (on-request registry)
           (metrics-response registry))
         {:status 405})
       (handler request))))
