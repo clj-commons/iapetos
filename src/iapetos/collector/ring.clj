@@ -145,8 +145,8 @@
   "Expose Prometheus metrics at the given constant URI using the text format.
 
    If `:on-request` is given, it will be called with the collector registry
-   whenever a request comes in. This lets you use the Prometheus scraper as
-   a trigger for metrics collection."
+   whenever a request comes in (the result will be ignored). This lets you use
+   the Prometheus scraper as a trigger for metrics collection."
   [handler registry
    & [{:keys [path on-request]
        :or {path "/metrics"}}]]
