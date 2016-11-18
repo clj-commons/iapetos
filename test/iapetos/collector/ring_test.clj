@@ -87,3 +87,20 @@
                   (contains? headers "Content-Type")
                   (re-matches #"text/plain(;.*)?" (headers "Content-Type"))
                   (= (export/text-format registry) body)))))))
+
+(defspec t-wrap-metrics-expose-with-on-request-hook 10
+  (prop/for-all
+    [registry-fn (g/registry-fn ring/initialize)
+     path        (gen/fmap #(str "/" %) gen/string-alpha-numeric)
+     wrap        (gen/elements [ring/wrap-metrics-expose ring/wrap-metrics])]
+    (let [registry (-> (registry-fn)
+                       (prometheus/register
+                         (prometheus/counter :http/requests-total)))
+          on-request-fn #(prometheus/inc % :http/requests-total)
+          handler (-> (constantly {:status 200})
+                      (wrap registry
+                            {:path path
+                             :on-request on-request-fn}))]
+      (and (zero? (prometheus/value (registry :http/requests-total)))
+           (= 200 (:status (handler {:request-method :get, :uri path})))
+           (= 1.0 (prometheus/value (registry :http/requests-total)))))))

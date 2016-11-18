@@ -142,14 +142,21 @@
 ;; ### Metrics Endpoint
 
 (defn wrap-metrics-expose
-  "Expose Prometheus metrics at the given constant URI using the text format."
+  "Expose Prometheus metrics at the given constant URI using the text format.
+
+   If `:on-request` is given, it will be called with the collector registry
+   whenever a request comes in. This lets you use the Prometheus scraper as
+   a trigger for metrics collection."
   [handler registry
-   & [{:keys [path]
+   & [{:keys [path on-request]
        :or {path "/metrics"}}]]
   (fn [{:keys [request-method uri] :as request}]
     (if (= uri path)
       (if (= request-method :get)
-        (metrics-response registry)
+        (do
+          (if on-request
+            (on-request registry))
+          (metrics-response registry))
         {:status 405})
       (handler request))))
 
@@ -165,7 +172,7 @@
    the `:path` label) if you have any kind of ID in your URIs – since otherwise
    there will be one timeseries created for each observed ID."
   [handler registry
-   & [{:keys [path path-fn]
+   & [{:keys [path path-fn on-request]
        :or {path    "/metrics"
             path-fn :uri}
        :as options}]]
