@@ -95,12 +95,12 @@
      wrap        (gen/elements [ring/wrap-metrics-expose ring/wrap-metrics])]
     (let [registry (-> (registry-fn)
                        (prometheus/register
-                         (prometheus/counter :http/requests-total)))
-          on-request-fn #(prometheus/inc % :http/requests-total)
+                         (prometheus/counter :http/scrape-requests-total)))
+          on-request-fn #(prometheus/inc % :http/scrape-requests-total)
           handler (-> (constantly {:status 200})
                       (wrap registry
                             {:path path
                              :on-request on-request-fn}))]
-      (and (zero? (prometheus/value (registry :http/requests-total)))
+      (and (zero? (prometheus/value (registry :http/scrape-requests-total)))
            (= 200 (:status (handler {:request-method :get, :uri path})))
-           (= 1.0 (prometheus/value (registry :http/requests-total)))))))
+           (= 1.0 (prometheus/value (registry :http/scrape-requests-total)))))))

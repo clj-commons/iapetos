@@ -42,8 +42,8 @@
      result#))
 
 (defn- matches-registry?
-  [{:keys [request-method headers body]} registry]
-  (and (= :put request-method)
+  [{:keys [request-method headers body] :as x} registry]
+  (and (= :post request-method)
        (= TextFormat/CONTENT_TYPE_004 (get headers "content-type"))
        (= (export/text-format registry) body)))
 
