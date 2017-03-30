@@ -28,25 +28,25 @@
 ;; ## Initialization
 
 (defn- make-latency-collector
-  [buckets]
+  [labels buckets]
   (prometheus/histogram
     :http/request-latency-seconds
     {:description "the response latency for HTTP requests."
-     :labels [:method :status :statusClass :path]}))
+     :labels (concat [:method :status :statusClass :path] labels)}))
 
 (defn- make-count-collector
-  []
+  [labels]
   (prometheus/counter
     :http/requests-total
     {:description "the total number of HTTP requests processed."
-     :labels [:method :status :statusClass :path]}))
+     :labels (concat [:method :status :statusClass :path] labels)}))
 
 (defn- make-exception-collector
-  []
+  [labels]
   (ex/exception-counter
     :http/exceptions-total
     {:description "the total number of exceptions encountered during HTTP processing."
-     :labels [:method :path]}))
+     :labels (concat [:method :path] labels)}))
 
 (defn initialize
   "Initialize all collectors for Ring handler instrumentation. This includes:
@@ -54,15 +54,17 @@
    - `http_request_latency_seconds`
    - `http_requests_total`
    - `http_exceptions_total`
-   "
+
+   Additional `:labels` can be given which need to be supplied using a
+   `:label-fn` in [[wrap-instrumentation]] or [[wrap-metrics]].  "
   [registry
-   & [{:keys [latency-histogram-buckets]
+   & [{:keys [latency-histogram-buckets labels]
        :or {latency-histogram-buckets [0.001 0.005 0.01 0.02 0.05 0.1 0.2 0.3 0.5 0.75 1 5]}}]]
   (prometheus/register
     registry
-    (make-latency-collector latency-histogram-buckets)
-    (make-count-collector)
-    (make-exception-collector)))
+    (make-latency-collector labels latency-histogram-buckets)
+    (make-count-collector labels)
+    (make-exception-collector labels)))
 
 ;; ## Response
 
@@ -93,31 +95,38 @@
   [{:keys [status]}]
   (str status))
 
+(defn- labels-for
+  ([options request]
+   (labels-for options request nil))
+  ([{:keys [label-fn path-fn]} {:keys [request-method] :as request} response]
+   (merge {:path   (path-fn request)
+           :method (-> request-method name string/upper-case)}
+          (label-fn request response))))
+
 (defn- record-metrics!
-  [registry delta {:keys [request-method ::path]} response]
-  (let [labels {:method      (-> request-method name string/upper-case)
-                :status      (status response)
-                :statusClass (status-class response)
-                :path        path}
+  [{:keys [registry] :as options} delta request response]
+  (let [labels           (merge
+                           {:status      (status response)
+                            :statusClass (status-class response)}
+                           (labels-for options request response))
         delta-in-seconds (/ delta 1e9)]
     (-> registry
         (prometheus/inc     :http/requests-total labels)
         (prometheus/observe :http/request-latency-seconds labels delta-in-seconds))))
 
 (defn- exception-counter-for
-  [registry {:keys [request-method ::path]}]
-  (let [labels {:method (-> request-method name string/upper-case)
-                :path   path}]
-    (registry :http/exceptions-total labels)))
+  [{:keys [registry] :as options} request]
+  (->> (labels-for options request)
+       (registry :http/exceptions-total)))
 
 (defn- run-instrumented
-  [registry handler request]
-  (ex/with-exceptions (exception-counter-for registry request)
+  [{:keys [handler] :as options} request]
+  (ex/with-exceptions (exception-counter-for options request)
     (let [start-time (System/nanoTime)
-          response (handler request)
-          delta (- (System/nanoTime) start-time)]
+          response   (handler request)
+          delta      (- (System/nanoTime) start-time)]
       (->> (ensure-response-map response)
-           (record-metrics! registry delta request))
+           (record-metrics! options delta request))
       response)))
 
 (defn wrap-instrumentation
@@ -132,12 +141,25 @@
 
    Be aware that you should implement `path-fn` (which generates the value for
    the `:path` label) if you have any kind of ID in your URIs – since otherwise
-   there will be one timeseries created for each observed ID."
+   there will be one timeseries created for each observed ID.
+
+   For additional labels in the metrics use `label-fn`, which takes the request
+   as a first argument and the response as the second argument.
+
+   Since collectors, and thus their labels, have to be registered before they
+   are ever used, you need to provide the list of `:labels` when calling
+   [[initialize]]."
   [handler registry
-   & [{:keys [path-fn] :or {path-fn :uri}}]]
-  (fn [request]
-    (->> (assoc request ::path (path-fn request))
-         (run-instrumented registry handler))))
+   & [{:keys [path-fn label-fn]
+       :or {path-fn  :uri
+            label-fn (constantly {})}
+       :as options}]]
+  (let [options (assoc options
+                       :path-fn  path-fn
+                       :label-fn label-fn
+                       :registry registry
+                       :handler  handler)]
+    #(run-instrumented options %)))
 
 ;; ### Metrics Endpoint
 
@@ -170,11 +192,19 @@
 
    Be aware that you should implement `path-fn` (which generates the value for
    the `:path` label) if you have any kind of ID in your URIs – since otherwise
-   there will be one timeseries created for each observed ID."
+   there will be one timeseries created for each observed ID.
+
+   For additional labels in the metrics use `label-fn`, which takes the request
+   as a first argument and the response as the second argument.
+
+   Since collectors, and thus their labels, have to be registered before they
+   are ever used, you need to provide the list of `:labels` when calling
+   [[initialize]]."
   [handler registry
-   & [{:keys [path path-fn on-request]
-       :or {path    "/metrics"
-            path-fn :uri}
+   & [{:keys [path path-fn on-request label-fn]
+       :or {path     "/metrics"
+            path-fn  :uri
+            label-fn (constantly {})}
        :as options}]]
   (-> handler
       (wrap-instrumentation registry options)

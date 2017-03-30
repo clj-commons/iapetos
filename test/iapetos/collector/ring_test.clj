@@ -13,18 +13,17 @@
 
 (def gen-handler
   (gen/one-of
-    [(->> (gen/elements
-            (concat
-              (range 200 205)
-              (range 300 308)
-              (range 400 429)
-              (range 500 505)))
-          (gen/fmap
-            (fn [status]
-              {:handler    (constantly {:status status})
-               :exception? false
-               :labels     {:status (str status)
-                            :statusClass (str (quot status 100) "XX")}})))
+    [(gen/let [status (gen/elements
+                        (concat
+                          (range 200 205)
+                          (range 300 308)
+                          (range 400 429)
+                          (range 500 505)))]
+       (gen/return
+         {:handler (constantly {:status status})
+          :exception? false
+          :labels {:status      (str status)
+                   :statusClass (str (quot status 100) "XX")}}))
      (gen/return
        {:handler    (fn [_] (throw (Exception.)))
         :exception? true})]))
@@ -104,3 +103,33 @@
       (and (zero? (prometheus/value (registry :http/scrape-requests-total)))
            (= 200 (:status (handler {:request-method :get, :uri path})))
            (= 1.0 (prometheus/value (registry :http/scrape-requests-total)))))))
+
+(defspec t-wrap-metrics-with-labels 10
+  (prop/for-all
+    [registry-fn   (g/registry-fn
+                     #(ring/initialize % {:labels [:extraReq :extraResp]}))
+     request-label  (gen/not-empty gen/string-alpha-numeric)
+     response-label (gen/not-empty gen/string-alpha-numeric)
+     wrap           (gen/elements [ring/wrap-metrics ring/wrap-instrumentation])]
+    (let [registry (registry-fn)
+          response {:status       200
+                     :extra-labels {:extraResp response-label}}
+          request  {:request-method :get
+                    :uri            "/"
+                    :extra-labels  {:extraReq request-label}}
+          handler  (-> (constantly response)
+                       (wrap
+                         registry
+                         {:label-fn (fn [request response]
+                                      (merge
+                                        (:extra-labels request)
+                                        (:extra-labels response)))}))
+          labels {:extraReq    request-label
+                  :extraResp   response-label
+                  :status      "200"
+                  :statusClass "2XX"
+                  :method      "GET"
+                  :path        "/"}]
+      (and (zero? (prometheus/value (registry :http/requests-total labels)))
+           (= 200 (:status (handler request)))
+           (= 1.0 (prometheus/value (registry :http/requests-total labels)))))))
