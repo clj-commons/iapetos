@@ -28,25 +28,25 @@
 ;; ## Initialization
 
 (defn- make-latency-collector
-  [buckets]
+  [labels buckets]
   (prometheus/histogram
     :http/request-latency-seconds
     {:description "the response latency for HTTP requests."
-     :labels [:method :status :statusClass :path]}))
+     :labels (concat [:method :status :statusClass :path] labels)}))
 
 (defn- make-count-collector
-  []
+  [labels]
   (prometheus/counter
     :http/requests-total
     {:description "the total number of HTTP requests processed."
-     :labels [:method :status :statusClass :path]}))
+     :labels (concat [:method :status :statusClass :path] labels)}))
 
 (defn- make-exception-collector
-  []
+  [labels]
   (ex/exception-counter
     :http/exceptions-total
     {:description "the total number of exceptions encountered during HTTP processing."
-     :labels [:method :path]}))
+     :labels (concat [:method :path] labels)}))
 
 (defn initialize
   "Initialize all collectors for Ring handler instrumentation. This includes:
@@ -56,13 +56,13 @@
    - `http_exceptions_total`
    "
   [registry
-   & [{:keys [latency-histogram-buckets]
+   & [{:keys [latency-histogram-buckets labels]
        :or {latency-histogram-buckets [0.001 0.005 0.01 0.02 0.05 0.1 0.2 0.3 0.5 0.75 1 5]}}]]
   (prometheus/register
     registry
-    (make-latency-collector latency-histogram-buckets)
-    (make-count-collector)
-    (make-exception-collector)))
+    (make-latency-collector labels latency-histogram-buckets)
+    (make-count-collector labels)
+    (make-exception-collector labels)))
 
 ;; ## Response
 
@@ -94,21 +94,24 @@
   (str status))
 
 (defn- record-metrics!
-  [registry delta {:keys [request-method ::path]} response]
-  (let [labels {:method      (-> request-method name string/upper-case)
-                :status      (status response)
-                :statusClass (status-class response)
-                :path        path}
+  [registry delta {:keys [request-method ::path] :as request} response]
+  (let [request-labels  (::labels request)
+        response-labels (::labels response)
+        default-labels  {:method      (-> request-method name string/upper-case)
+                         :status      (status response)
+                         :statusClass (status-class response)
+                         :path        path}
+        labels (merge default-labels request-labels response-labels)
         delta-in-seconds (/ delta 1e9)]
     (-> registry
         (prometheus/inc     :http/requests-total labels)
         (prometheus/observe :http/request-latency-seconds labels delta-in-seconds))))
 
 (defn- exception-counter-for
-  [registry {:keys [request-method ::path]}]
-  (let [labels {:method (-> request-method name string/upper-case)
-                :path   path}]
-    (registry :http/exceptions-total labels)))
+  [registry {:keys [request-method ::path ::labels]}]
+  (let [default-labels {:method (-> request-method name string/upper-case)
+                        :path   path}]
+    (registry :http/exceptions-total (merge default-labels labels))))
 
 (defn- run-instrumented
   [registry handler request]

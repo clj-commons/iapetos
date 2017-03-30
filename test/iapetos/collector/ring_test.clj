@@ -13,36 +13,40 @@
 
 (def gen-handler
   (gen/one-of
-    [(->> (gen/elements
-            (concat
-              (range 200 205)
-              (range 300 308)
-              (range 400 429)
-              (range 500 505)))
-          (gen/fmap
-            (fn [status]
-              {:handler    (constantly {:status status})
-               :exception? false
-               :labels     {:status (str status)
-                            :statusClass (str (quot status 100) "XX")}})))
+    [(gen/let [status (gen/elements
+                        (concat
+                          (range 200 205)
+                          (range 300 308)
+                          (range 400 429)
+                          (range 500 505)))
+               extra  gen/string-alpha-numeric]
+              (gen/return
+                {:handler (constantly {:status status :iapetos.collector.ring/labels {:extraRes extra}})
+                :exception? false
+                :labels {:status      (str status)
+                         :statusClass (str (quot status 100) "XX")
+                         :extraRes   extra}}))
      (gen/return
        {:handler    (fn [_] (throw (Exception.)))
         :exception? true})]))
 
 (def gen-request
   (gen/let [path   (gen/fmap #(str "/" %) gen/string-alpha-numeric)
-            method (gen/elements [:get :post :put :delete :patch :options :head])]
+            method (gen/elements [:get :post :put :delete :patch :options :head])
+            extra gen/string-alpha-numeric]
     (gen/return
       {:request-method method
        :uri            path
-       :labels         {:method (-> method name .toUpperCase)
-                        :path   path}})))
+       :iapetos.collector.ring/labels {:extraReq extra}
+       :labels         {:method   (-> method name .toUpperCase)
+                        :path     path
+                        :extraReq extra}})))
 
 ;; ## Tests
 
 (defspec t-wrap-instrumentation 100
   (prop/for-all
-    [registry-fn                         (g/registry-fn ring/initialize)
+    [registry-fn                         (g/registry-fn #(ring/initialize % {:labels [:extraReq :extraRes]}))
      {:keys [handler exception? labels]} gen-handler
      {labels' :labels, :as request}      gen-request
      wrap (gen/elements [ring/wrap-instrumentation ring/wrap-metrics])]
@@ -54,7 +58,7 @@
                        (catch Throwable t
                          ::error))
           delta      (/ (- (System/nanoTime) start-time) 1e9)
-          labels     (merge labels labels')
+          labels     (merge labels' labels)
           ex-labels  (assoc labels' :exceptionClass "java.lang.Exception")
           counter    (registry :http/requests-total labels)
           histogram  (registry :http/request-latency-seconds labels)
