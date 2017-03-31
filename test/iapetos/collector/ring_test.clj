@@ -21,11 +21,11 @@
                           (range 500 505)))
                extra  gen/string-alpha-numeric]
               (gen/return
-                {:handler (constantly {:status status :iapetos.collector.ring/labels {:extraRes extra}})
-                :exception? false
-                :labels {:status      (str status)
-                         :statusClass (str (quot status 100) "XX")
-                         :extraRes   extra}}))
+                {:handler (constantly {:status status :iapetos/labels {:extraRes extra}})
+                 :exception? false
+                 :labels {:status      (str status)
+                          :statusClass (str (quot status 100) "XX")
+                          :extraRes    extra}}))
      (gen/return
        {:handler    (fn [_] (throw (Exception.)))
         :exception? true})]))
@@ -33,11 +33,11 @@
 (def gen-request
   (gen/let [path   (gen/fmap #(str "/" %) gen/string-alpha-numeric)
             method (gen/elements [:get :post :put :delete :patch :options :head])
-            extra gen/string-alpha-numeric]
+            extra  gen/string-alpha-numeric]
     (gen/return
       {:request-method method
        :uri            path
-       :iapetos.collector.ring/labels {:extraReq extra}
+       :iapetos/labels {:extraReq extra}
        :labels         {:method   (-> method name .toUpperCase)
                         :path     path
                         :extraReq extra}})))
@@ -108,3 +108,9 @@
       (and (zero? (prometheus/value (registry :http/scrape-requests-total)))
            (= 200 (:status (handler {:request-method :get, :uri path})))
            (= 1.0 (prometheus/value (registry :http/scrape-requests-total)))))))
+
+(deftest default-label-fn
+  (is (= {:a 1 :b 2} (#'ring/default-label-fn {:iapetos/labels {:a 1 :b 3}} {:iapetos/labels {:b 2}})))
+  (is (= {} (#'ring/default-label-fn {:iapetos/labels {}} nil)))
+  (is (= nil (#'ring/default-label-fn {:iapetos/labels nil} nil)))
+  (is (= nil (#'ring/default-label-fn nil nil))))

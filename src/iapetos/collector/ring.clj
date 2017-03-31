@@ -94,34 +94,40 @@
   (str status))
 
 (defn- record-metrics!
-  [registry delta {:keys [request-method ::path] :as request} response]
-  (let [request-labels  (::labels request)
-        response-labels (::labels response)
-        default-labels  {:method      (-> request-method name string/upper-case)
-                         :status      (status response)
-                         :statusClass (status-class response)
-                         :path        path}
-        labels (merge default-labels request-labels response-labels)
+  [registry label-fn delta {:keys [request-method ::path] :as request} response]
+  (let [extra-labels   (label-fn request response)
+        default-labels {:method      (-> request-method name string/upper-case)
+                        :status      (status response)
+                        :statusClass (status-class response)
+                        :path        path}
+        labels (merge default-labels extra-labels)
         delta-in-seconds (/ delta 1e9)]
     (-> registry
         (prometheus/inc     :http/requests-total labels)
         (prometheus/observe :http/request-latency-seconds labels delta-in-seconds))))
 
 (defn- exception-counter-for
-  [registry {:keys [request-method ::path ::labels]}]
-  (let [default-labels {:method (-> request-method name string/upper-case)
+  [registry label-fn {:keys [request-method ::path] :as request}]
+  (let [extra-labels   (label-fn request nil)
+        default-labels {:method (-> request-method name string/upper-case)
                         :path   path}]
-    (registry :http/exceptions-total (merge default-labels labels))))
+    (registry :http/exceptions-total (merge default-labels extra-labels))))
 
 (defn- run-instrumented
-  [registry handler request]
-  (ex/with-exceptions (exception-counter-for registry request)
+  [registry label-fn handler request]
+  (ex/with-exceptions (exception-counter-for registry label-fn request)
     (let [start-time (System/nanoTime)
           response (handler request)
           delta (- (System/nanoTime) start-time)]
       (->> (ensure-response-map response)
-           (record-metrics! registry delta request))
+           (record-metrics! registry label-fn delta request))
       response)))
+
+(defn- default-label-fn
+  "Get the labels from the request and response and merge them.
+   Response labels will have the last word."
+  [req resp]
+  (apply merge (map :iapetos/labels [req resp])))
 
 (defn wrap-instrumentation
   "Wrap the given Ring handler to write metrics to the given registry:
@@ -135,12 +141,19 @@
 
    Be aware that you should implement `path-fn` (which generates the value for
    the `:path` label) if you have any kind of ID in your URIs – since otherwise
-   there will be one timeseries created for each observed ID."
+   there will be one timeseries created for each observed ID.
+
+   For additional labels in the metrics use `label-fn`, which takes the request
+   as a first argument and the response as the second argument. By default it merges
+   `:iapetos/labels` from the request and response.
+   Since collectors, and thus their labels, have to be registered before they are ever used,
+   you need to provide the list of labels when calling [[initialize]]."
   [handler registry
-   & [{:keys [path-fn] :or {path-fn :uri}}]]
+   & [{:keys [path-fn label-fn] :or {path-fn :uri
+                                     label-fn default-label-fn}}]]
   (fn [request]
     (->> (assoc request ::path (path-fn request))
-         (run-instrumented registry handler))))
+         (run-instrumented registry label-fn handler))))
 
 ;; ### Metrics Endpoint
 
@@ -173,11 +186,18 @@
 
    Be aware that you should implement `path-fn` (which generates the value for
    the `:path` label) if you have any kind of ID in your URIs – since otherwise
-   there will be one timeseries created for each observed ID."
+   there will be one timeseries created for each observed ID.
+
+   For additional labels in the metrics use `label-fn`, which takes the request
+   as a first argument and the response as the second argument. By default it merges
+   `:iapetos/labels` from the request and response.
+   Since collectors, and thus their labels, have to be registered before they are ever used,
+   you need to provide the list of labels when calling [[initialize]]."
   [handler registry
-   & [{:keys [path path-fn on-request]
-       :or {path    "/metrics"
-            path-fn :uri}
+   & [{:keys [path path-fn on-request label-fn]
+       :or {path     "/metrics"
+            path-fn  :uri
+            label-fn default-label-fn}
        :as options}]]
   (-> handler
       (wrap-instrumentation registry options)
