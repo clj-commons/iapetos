@@ -107,8 +107,9 @@
   (read-value [this]
     (let [^io.prometheus.client.Summary$Child$Value value
           (.get ^Summary$Child this)]
-      {:sum   (.-sum value)
-       :count (.-count value)}))
+      {:sum       (.-sum value)
+       :count     (.-count value)
+       :quantiles (into {} (.-quantiles value))}))
 
   ObservableCollector
   (observe [this amount]

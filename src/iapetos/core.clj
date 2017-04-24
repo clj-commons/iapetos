@@ -14,6 +14,7 @@
             Gauge$Child
             Gauge$Timer
             Summary
+            Summary$Builder
             Summary$Child]))
 
 ;; ## Registry
@@ -105,21 +106,27 @@
          #(cond-> (Histogram/build)
             (seq buckets) (.buckets (double-array buckets))))))
 
+(defn- add-quantile [^Summary$Builder builder [quantile error]]
+  (.quantile builder quantile error))
+
 (defn summary
   "Create a new `Summary` collector:
 
    - `:description`: a description for the summary,
+   - `:quantiles`: a map of double [quantile error] entries
    - `:labels`: a seq of available labels for the summary,
    - `:lazy?` whether to immediately register the given metric with a registry
      or not."
   [metric
-   & [{:keys [description labels lazy?]
+   & [{:keys [description quantiles labels lazy?]
        :or {description "a summary metric."}
        :as options}]]
   (-> (merge
          {:description description}
          (metric/as-map metric options))
-       (collector/make-simple-collector :summary #(Summary/build))))
+      (collector/make-simple-collector
+       :summary
+       #(reduce add-quantile (Summary/build) quantiles))))
 
 ;; ## Raw Operations
 
