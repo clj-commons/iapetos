@@ -32,7 +32,8 @@
   (prometheus/histogram
     :http/request-latency-seconds
     {:description "the response latency for HTTP requests."
-     :labels (concat [:method :status :statusClass :path] labels)}))
+     :labels (concat [:method :status :statusClass :path] labels)
+     :buckets buckets}))
 
 (defn- make-count-collector
   [labels]
