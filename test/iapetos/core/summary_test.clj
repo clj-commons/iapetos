@@ -34,7 +34,7 @@
                          (prometheus/summary metric)))
           expected-value (reduce
                            #((:effect %2) %1)
-                           {:count 0.0, :sum 0.0}
+                           {:count 0.0, :sum 0.0, :quantiles {}}
                            ops)]
       (doseq [{:keys [f]} ops]
         (f registry metric))
@@ -70,11 +70,26 @@
                          (prometheus/summary metric {:labels (keys labels)})))
           expected-value (reduce
                            #((:effect %2) %1)
-                           {:count 0.0, :sum 0.0}
+                           {:count 0.0, :sum 0.0, :quantiles {}}
                            ops)]
       (doseq [{:keys [f]} ops]
         (f registry metric))
       (= expected-value (prometheus/value (registry metric labels))))))
+
+;; ## Summary w/ Labels and Quantiles
+
+(defspec t-summary-with-labels-and-quantiles 100
+  (prop/for-all
+   [metric      g/metric
+    ops         gen-ops
+    registry-fn (g/registry-fn)]
+   (let [quantiles {0.5 0.05, 0.9 0.1, 0.99 0.001}
+         registry (-> (registry-fn)
+                      (prometheus/register
+                       (prometheus/summary metric {:labels (keys labels), :quantiles quantiles})))]
+     (doseq [{:keys [f]} ops]
+       (f registry metric))
+     (= (keys quantiles) (keys (:quantiles (prometheus/value (registry metric labels))))))))
 
 ;; ## Summary Timer
 
