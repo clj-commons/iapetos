@@ -1,4 +1,4 @@
-(defproject iapetos "0.1.6"
+(defproject iapetos "0.1.7-SNAPSHOT"
   :description "A Clojure Prometheus Client"
   :url "https://github.com/xsc/iapetos"
   :license {:name "MIT License"
