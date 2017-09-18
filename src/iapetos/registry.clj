@@ -80,3 +80,10 @@
   ([] (create "iapetos_registry"))
   ([registry-name]
    (IapetosRegistry. registry-name (CollectorRegistry.) {} {})))
+
+(def default
+  (IapetosRegistry.
+    "prometheus_default_registry"
+    (CollectorRegistry/defaultRegistry)
+    {}
+    {}))

@@ -2,7 +2,8 @@
   (:require [clojure.test.check.generators :as gen]
             [iapetos.core :as prometheus]
             [iapetos.export :refer [pushable-collector-registry]]
-            [clojure.string :as string]))
+            [clojure.string :as string])
+  (:import [io.prometheus.client CollectorRegistry]))
 
 ;; ## Metric
 
@@ -64,14 +65,17 @@
                       [#(prometheus/collector-registry %)
                        #(pushable-collector-registry
                           {:job %
-                           :push-gateway "0:8080"})])]
-    (gen/return
-      (fn []
-        (reduce
-          (fn [r f]
-            (f r))
-          (base-fn registry-name)
-          initializers)))))
+                           :push-gateway "0:8080"})
+                       (constantly prometheus/default-registry)])]
+    (let [registry (base-fn registry-name)]
+      (.clear ^CollectorRegistry (iapetos.registry/raw registry))
+      (gen/return
+        (fn []
+          (reduce
+            (fn [r f]
+              (f r))
+            registry
+            initializers))))))
 
 ;; ## Collector
 

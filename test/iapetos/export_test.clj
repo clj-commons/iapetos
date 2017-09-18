@@ -47,17 +47,27 @@
        (= TextFormat/CONTENT_TYPE_004 (get headers "content-type"))
        (= (export/text-format registry) body)))
 
+;; ## Generators
+
+(def gen-push-spec-grouping-key
+  (gen/map gen/string-alpha-numeric gen/string-alpha-numeric))
+
+(def gen-push-spec
+  (gen/let [registry-fn (gen/one-of
+                          [(gen/return (constantly nil))
+                           (g/registry-fn)])]
+    (gen/hash-map
+      :job          gen/string-alpha-numeric
+      :registry     (gen/return (registry-fn))
+      :push-gateway (gen/return push-gateway)
+      :grouping-key gen-push-spec-grouping-key)))
+
 ;; ## Tests
 
 (defspec t-pushable-collector-registry 10
   (prop/for-all
-    [collectors   g/collectors
-     job          gen/string-alpha-numeric
-     grouping-key (gen/map gen/string-alpha-numeric gen/string-alpha-numeric)]
-    (let [registry (export/pushable-collector-registry
-                     {:job          job
-                      :push-gateway push-gateway
-                      :grouping-key grouping-key})]
+    [push-spec gen-push-spec]
+    (let [registry (export/pushable-collector-registry push-spec)]
       (matches-registry?
         (with-push-gateway
           (export/push! registry))
@@ -65,29 +75,20 @@
 
 (defspec t-push-registry! 10
   (prop/for-all
-    [collectors   g/collectors
-     job          gen/string-alpha-numeric
-     grouping-key (gen/map gen/string-alpha-numeric gen/string-alpha-numeric)
-     registry-fn  (g/registry-fn)]
+    [push-spec   gen-push-spec
+     registry-fn (g/registry-fn)]
     (let [registry (registry-fn)]
       (matches-registry?
         (with-push-gateway
           (export/push-registry!
             registry
-            {:job          job
-             :push-gateway push-gateway
-             :grouping-key grouping-key}))
+            (dissoc push-spec :registry)))
         registry))))
 
 (defspec t-with-push 10
   (prop/for-all
-    [collectors   g/collectors
-     job          gen/string-alpha-numeric
-     grouping-key (gen/map gen/string-alpha-numeric gen/string-alpha-numeric)]
-    (let [registry (export/pushable-collector-registry
-                     {:job          job
-                      :push-gateway push-gateway
-                      :grouping-key grouping-key})]
+    [push-spec gen-push-spec]
+    (let [registry (export/pushable-collector-registry push-spec)]
       (matches-registry?
         (with-push-gateway
           (export/with-push registry
@@ -96,15 +97,11 @@
 
 (defspec t-with-push-gateway 10
   (prop/for-all
-    [collectors   g/collectors
-     job          gen/string-alpha-numeric
-     grouping-key (gen/map gen/string-alpha-numeric gen/string-alpha-numeric)]
+    [push-spec gen-push-spec]
     (let [registry-promise (promise)]
       (matches-registry?
         (with-push-gateway
           (export/with-push-gateway
-            [registry {:job          job
-                       :push-gateway push-gateway
-                       :grouping-key grouping-key}]
+            [registry push-spec]
             (deliver registry-promise registry)))
         @registry-promise))))

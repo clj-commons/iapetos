@@ -33,16 +33,18 @@
 
 ;; ### Implementation
 
-(deftype PushableRegistry [internal-registry push-gateway grouping-key]
+(deftype PushableRegistry [internal-registry job push-gateway grouping-key]
   registry/Registry
   (register [_ metric collector]
     (PushableRegistry.
       (registry/register internal-registry metric collector)
+      job
       push-gateway
       grouping-key))
   (subsystem [_ subsystem-name]
     (PushableRegistry.
       (registry/subsystem internal-registry subsystem-name)
+      job
       push-gateway
       grouping-key))
   (get [_ metric labels]
@@ -63,7 +65,7 @@
     (.pushAdd
       ^PushGateway       push-gateway
       ^CollectorRegistry (registry/raw this)
-      ^String            (registry/name this)
+      ^String            job
       ^java.util.Map     grouping-key)
     this))
 
@@ -86,11 +88,15 @@
 
 (defn pushable-collector-registry
   "Create a fresh iapetos collector registry whose metrics can be pushed to the
-   specified gateway using [[push!]]."
-  [{:keys [job push-gateway grouping-key]}]
+   specified gateway using [[push!]].
+
+   Alternatively, by supplying `:registry`, an existing one can be wrapped to be
+   pushable, e.g. the [[default-registry]]."
+  [{:keys [job registry push-gateway grouping-key]}]
   {:pre [(string? job) push-gateway]}
   (->PushableRegistry
-    (registry/create job)
+    (or registry (registry/create job))
+    job
     (as-push-gateway push-gateway)
     (as-grouping-key grouping-key)))
 
@@ -127,7 +133,7 @@
      ...)
    ```"
   [[binding options] & body]
-  {:pre [binding (map? options)]}
+  {:pre [binding options]}
   `(let [r# (pushable-collector-registry ~options)]
      (with-push r#
        (let [~binding r#]

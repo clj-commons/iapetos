@@ -5,6 +5,7 @@
             [iapetos.registry :as registry])
   (:refer-clojure :exclude [get inc dec set])
   (:import [io.prometheus.client
+            CollectorRegistry
             Counter
             Counter$Child
             Histogram
@@ -18,6 +19,9 @@
             Summary$Child]))
 
 ;; ## Registry
+
+(def ^{:added "0.1.7"} default-registry
+  registry/default)
 
 (defn collector-registry
   "Create a fresh iapetos collector registry."
