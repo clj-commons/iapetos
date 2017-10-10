@@ -322,6 +322,33 @@ This is particularly useful for applications that do not expose an HTTP port
 themselves but shall still be scraped by Prometheus. By default, metrics will
 be exposed at `/metrics`.
 
+### Caveats
+
+#### Using the default registry and reload/refresh
+
+Many prometheus integration prefer the default registry
+(`CollectorRegistry/defaultRegistry`) and cannot be provoked to do
+otherwise. Using these and also at the same time using a workflow like
+[reloaded](http://thinkrelevance.com/blog/2013/06/04/clojure-workflow-reloaded)
+may cause the _underlying_ default registry to be initialized multiple
+times. A workaround is to use prometheus own `CollectorRegistry.clear`
+as a first step in initialization to make sure the default registry is
+clean and reusable. This will (of course) completely wipe the current
+state of the underlying `CollectorRegistry/defaultRegistry`.
+
+An example:
+```
+(defonce my-default-registry []
+  (do
+    (-> registry/default
+        ^CollectorRegistry (registry/raw)
+        (.clear))
+    (-> registry/default
+        ;; initializers or registrations
+	;; like...
+        (fn/initialize))))
+```
+
 ## License
 
 ```
