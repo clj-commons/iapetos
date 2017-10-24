@@ -24,6 +24,11 @@
                       :namespaces [iapetos.core
                                    iapetos.export
                                    iapetos.standalone
-                                   #"^iapetos\.collector\..+"]}}}
-  :aliases {"codox" ["with-profile" "+codox" "codox"]}
+                                   #"^iapetos\.collector\..+"]}}
+             :coverage
+             {:plugins [[lein-cloverage "1.0.9"]]
+              :dependencies [[org.clojure/tools.reader "1.1.0"]
+                             [riddley "0.1.14"]]}}
+  :aliases {"codox" ["with-profile" "+codox" "codox"]
+            "codecov" ["with-profile" "+coverage" "cloverage" "--codecov"]}
   :pedantic? :abort)
