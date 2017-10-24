@@ -1,17 +1,15 @@
-# iapetos [![Build Status](https://travis-ci.org/xsc/iapetos.svg?branch=master)](https://travis-ci.org/xsc/iapetos)
+# iapetos
 
 __iapetos__ is a Clojure wrapper around the [Prometheus Java
 Client][java-client], providing idiomatic and simple access to commonly used
 functionality while retaining low-level flexibility for tackling more complex
 tasks.
 
-[java-client]: https://github.com/prometheus/client_java
-
-## Usage
-
-__Leiningen__ ([via Clojars](https://clojars.org/iapetos))
-
+[![Build Status](https://travis-ci.org/xsc/iapetos.svg?branch=master)](https://travis-ci.org/xsc/iapetos)
 [![Clojars Project](https://img.shields.io/clojars/v/iapetos.svg)](https://clojars.org/iapetos)
+[![codecov](https://codecov.io/gh/xsc/iapetos/branch/master/graph/badge.svg)](https://codecov.io/gh/xsc/iapetos)
+
+[java-client]: https://github.com/prometheus/client_java
 
 ## Basic Usage
 
