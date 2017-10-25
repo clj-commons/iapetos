@@ -6,10 +6,10 @@
             :year 2016
             :key "mit"}
   :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
-                 [io.prometheus/simpleclient "0.0.26"]
-                 [io.prometheus/simpleclient_common "0.0.26"]
-                 [io.prometheus/simpleclient_pushgateway "0.0.26"]
-                 [io.prometheus/simpleclient_hotspot "0.0.26" :scope "provided"]]
+                 [io.prometheus/simpleclient "0.1.0"]
+                 [io.prometheus/simpleclient_common "0.1.0"]
+                 [io.prometheus/simpleclient_pushgateway "0.1.0"]
+                 [io.prometheus/simpleclient_hotspot "0.1.0" :scope "provided"]]
   :profiles {:dev
              {:dependencies [[org.clojure/test.check "0.9.0"]
                              [aleph "0.4.3"]]
