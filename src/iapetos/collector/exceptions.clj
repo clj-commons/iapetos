@@ -39,8 +39,8 @@
 
 (deftype ExceptionCounter [counter]
   collector/Collector
-  (instantiate [this registry registry-options]
-    (collector/instantiate counter registry registry-options))
+  (instantiate [this registry-options]
+    (collector/instantiate counter registry-options))
   (metric [this]
     (collector/metric counter))
   (label-instance [_ instance values]

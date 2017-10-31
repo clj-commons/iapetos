@@ -1,8 +1,9 @@
 (ns iapetos.registry
   (:refer-clojure :exclude [get name])
-  (:require [iapetos.metric :as metric]
-            [iapetos.collector :as collector])
-  (:import [io.prometheus.client CollectorRegistry]))
+  (:require [iapetos.registry
+             [collectors :as collectors]
+             [utils :as utils]])
+  (:import [io.prometheus.client Collector CollectorRegistry]))
 
 ;; ## Protocol
 
@@ -23,40 +24,22 @@
 
 ;; ## Implementation
 
-(defn- metric->path
-  [metric {:keys [subsystem]}]
-  (let [{:keys [name namespace]} (metric/metric-name metric)]
-    [namespace subsystem name]))
-
-(defn- join-subsystem
-  [old-subsystem subsystem]
-  (if (seq old-subsystem)
-    (metric/sanitize (str old-subsystem "_" subsystem))
-    subsystem))
-
-(deftype IapetosRegistry [registry-name registry options metrics]
+(deftype IapetosRegistry [registry-name registry options collectors]
   Registry
-  (register [_ metric collector]
-    (let [instance (collector/instantiate collector registry options)
-          path (metric->path metric options)]
-      (->> {:collector collector
-            :instance  instance}
-           (assoc-in metrics path)
-           (IapetosRegistry. registry-name registry options))))
+  (register [this metric collector]
+    (->> (collectors/prepare registry metric collector options)
+         (collectors/register-if-not-lazy)
+         (collectors/insert collectors)
+         (IapetosRegistry. registry-name registry options)))
   (subsystem [_ subsystem-name]
     (assert (string? subsystem-name))
     (IapetosRegistry.
       registry-name
       registry
-      (update options :subsystem join-subsystem subsystem-name)
+      (update options :subsystem utils/join-subsystem subsystem-name)
       {}))
   (get [_ metric labels]
-    (let [path (metric->path metric options)]
-      (when-let [{:keys [instance collector]} (get-in metrics path)]
-        (collector/label-instance
-          collector
-          @instance
-          labels))))
+    (collectors/by collectors metric labels options))
   (raw [_]
     registry)
   (name [_]

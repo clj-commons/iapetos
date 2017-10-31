@@ -9,14 +9,13 @@
 
 (defprotocol Collector
   "Protocol for Collectors to be registered with a iapetos registry."
-  (instantiate [this registry registry-options]
-    "Return a `clojure.lang.Delay` with an instance of this collector
-     registered to the given `CollectorRegistry`.")
+  (instantiate [this registry-options]
+    "Return a collector instance that can be registered with collector
+     registries.")
   (metric [this]
     "Return a `iapetos.metric/Metric` for this collector.")
   (label-instance [this instance values]
     "Add labels to the given collector instance produced by `instantiate`."))
-
 
 ;; ## Labels
 
@@ -58,24 +57,19 @@
                                 description
                                 subsystem
                                 labels
-                                labels-for-builder
                                 builder-constructor
                                 lazy?]
   Collector
-  (instantiate [this registry registry-options]
-    (let [subsystem (check-subsystem this registry-options)
-          deferred-collector (delay
-                               (-> ^SimpleCollector$Builder
-                                   (builder-constructor)
-                                   (.name name)
-                                   (.namespace namespace)
-                                   (.help description)
-                                   (.labelNames (label-array labels))
-                                   (cond-> subsystem (.subsystem subsystem))
-                                   (.register ^CollectorRegistry registry)))]
-      (when-not lazy?
-        @deferred-collector)
-      deferred-collector))
+  (instantiate [this registry-options]
+    (let [subsystem (check-subsystem this registry-options)]
+      (-> ^SimpleCollector$Builder
+          (builder-constructor)
+          (.name name)
+          (.namespace namespace)
+          (.help description)
+          (.labelNames (label-array labels))
+          (cond-> subsystem (.subsystem subsystem))
+          (.create))))
   (metric [_]
     {:name      name
      :namespace namespace})
@@ -101,7 +95,6 @@
      :description         description
      :subsystem           subsystem
      :labels              (label-names labels)
-     :labels-for-builder  (label-array labels)
      :builder-constructor builder-constructor
      :lazy?               lazy?}))
 
@@ -114,11 +107,8 @@
 
 (extend-protocol Collector
   io.prometheus.client.SimpleCollector
-  (instantiate [this registry _]
-    (.register
-      ^io.prometheus.client.Collector this
-      ^CollectorRegistry registry)
-    (delay this))
+  (instantiate [this _]
+    this)
   (metric [this]
     (raw-metric this))
   (label-instance [_ instance values]
@@ -128,11 +118,8 @@
     instance)
 
   io.prometheus.client.Collector
-  (instantiate [this registry _]
-    (.register
-      ^io.prometheus.client.Collector this
-      ^CollectorRegistry registry)
-    (delay this))
+  (instantiate [this _]
+    this)
   (metric [this]
     (raw-metric this))
   (label-instance [_ instance _]
@@ -143,9 +130,8 @@
 (defn named
   [metric ^io.prometheus.client.Collector instance]
   (reify Collector
-    (instantiate [_ registry _]
-      (.register instance ^CollectorRegistry registry)
-      (delay instance))
+    (instantiate [_ _]
+      instance)
     (metric [_]
       metric)
     (label-instance [_ _ _]
@@ -157,10 +143,8 @@
   [metric instances]
   (let [instances (filter identity instances)]
     (reify Collector
-      (instantiate [_ registry _]
-        (doseq [^io.prometheus.client.Collector collector instances]
-          (.register collector registry))
-        (delay instances))
+      (instantiate [_ _]
+        instances)
       (metric [_]
         metric)
       (label-instance [_ _ _]
