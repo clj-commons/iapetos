@@ -39,6 +39,19 @@
         collector))
     registry collectors))
 
+(defn ^{:added "0.1.8"} register-lazy
+  "Prepare the given collectors but only actually register them on first use.
+   This can be useful for metrics that should only be available conditionally,
+   e.g. the failure timestamp for a batch job."
+  [registry & collectors]
+  (reduce
+    (fn [registry collector]
+      (registry/register-lazy
+        registry
+        (collector/metric collector)
+        collector))
+    registry collectors))
+
 (defn register-as
   "Register the given collector under the given metric name. This is useful
    for plain Prometheus collectors, i.e. those that are not provided by
@@ -62,27 +75,25 @@
   "Create a new `Counter` collector:
 
    - `:description`: a description for the counter,
-   - `:labels`: a seq of available labels for the counter,
-   - `:lazy?` whether to immediately register the given metric with a registry
-     or not."
+   - `:labels`: a seq of available labels for the counter.
+   "
   [metric
-   & [{:keys [description labels lazy?]
+   & [{:keys [description labels]
        :or {description "a counter metric."}
        :as options}]]
   (-> (merge
-         {:description description}
-         (metric/as-map metric options))
-       (collector/make-simple-collector :counter #(Counter/build))))
+        {:description description}
+        (metric/as-map metric options))
+      (collector/make-simple-collector :counter #(Counter/build))))
 
 (defn gauge
   "Create a new `Gauge` collector:
 
    - `:description`: a description for the gauge,
-   - `:labels`: a seq of available labels for the gauge,
-   - `:lazy?` whether to immediately register the given metric with a registry
-     or not."
+   - `:labels`: a seq of available labels for the gauge.
+   "
   [metric
-   & [{:keys [description labels lazy?]
+   & [{:keys [description labels]
        :or {description "a gauge metric."}
        :as options}]]
   (-> (merge
@@ -95,20 +106,19 @@
 
    - `:description`: a description for the histogram,
    - `:buckets`: a seq of double values describing the histogram buckets,
-   - `:labels`: a seq of available labels for the histogram,
-   - `:lazy?` whether to immediately register the given metric with a registry
-     or not."
+   - `:labels`: a seq of available labels for the histogram.
+   "
   [metric
-   & [{:keys [description buckets labels lazy?]
+   & [{:keys [description buckets labels]
        :or {description "a histogram metric."}
        :as options}]]
   (-> (merge
-         {:description description}
-         (metric/as-map metric options))
-       (collector/make-simple-collector
-         :histogram
-         #(cond-> (Histogram/build)
-            (seq buckets) (.buckets (double-array buckets))))))
+        {:description description}
+        (metric/as-map metric options))
+      (collector/make-simple-collector
+        :histogram
+        #(cond-> (Histogram/build)
+           (seq buckets) (.buckets (double-array buckets))))))
 
 (defn- add-quantile [^Summary$Builder builder [quantile error]]
   (.quantile builder quantile error))
@@ -118,11 +128,10 @@
 
    - `:description`: a description for the summary,
    - `:quantiles`: a map of double [quantile error] entries
-   - `:labels`: a seq of available labels for the summary,
-   - `:lazy?` whether to immediately register the given metric with a registry
-     or not."
+   - `:labels`: a seq of available labels for the summary.
+   "
   [metric
-   & [{:keys [description quantiles labels lazy?]
+   & [{:keys [description quantiles labels]
        :or {description "a summary metric."}
        :as options}]]
   (-> (merge

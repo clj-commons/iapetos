@@ -14,6 +14,9 @@
   (register [registry metric collector]
     "Add the given `iapetos.collector/Collector` to the registry using the
      given name.")
+  (register-lazy [registry metric collector]
+    "Add the given `iapetos.collector/Collector` to the registry using the
+     given name, but only actually register it on first use.")
   (get [registry metric labels]
     "Retrieve the collector instance associated with the given metric,
      setting the given labels.")
@@ -28,7 +31,11 @@
   Registry
   (register [this metric collector]
     (->> (collectors/prepare registry metric collector options)
-         (collectors/register-if-not-lazy)
+         (collectors/register)
+         (collectors/insert collectors)
+         (IapetosRegistry. registry-name registry options)))
+  (register-lazy [this metric collector]
+    (->> (collectors/prepare registry metric collector options)
          (collectors/insert collectors)
          (IapetosRegistry. registry-name registry options)))
   (subsystem [_ subsystem-name]

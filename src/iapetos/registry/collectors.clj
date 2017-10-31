@@ -17,24 +17,34 @@
     (.register registry instance)
     instance))
 
+(defn- warn-lazy-deprecation!
+  [{:keys [collector instance] :as collector-map}]
+  (let [lazy? (:lazy? collector)]
+    (when (some? lazy?)
+      (println "collector option ':lazy?' is deprecated, use 'register-lazy' instead.")
+      (println "collector: " (pr-str collector))
+      (when-not lazy?
+        @instance)))
+  collector-map)
+
 (defn prepare
   [registry metric collector options]
   (let [path (utils/metric->path metric options)
         instance (collector/instantiate collector options)]
-    {:collector collector
-     :metric    metric
-     :path      path
-     :raw       instance
-     :instance  (register-collector-delay registry instance)}))
+    (-> {:collector collector
+         :metric    metric
+         :path      path
+         :raw       instance
+         :instance  (register-collector-delay registry instance)}
+        (warn-lazy-deprecation!))))
 
 (defn insert
   [collectors {:keys [path] :as collector}]
   (assoc-in collectors path collector))
 
-(defn register-if-not-lazy
+(defn register
   [{:keys [collector instance] :as collector-map}]
-  (when-not (:lazy? collector)
-    @instance)
+  @instance
   collector-map)
 
 ;; ## Read Access
