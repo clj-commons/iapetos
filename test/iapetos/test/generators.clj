@@ -63,6 +63,7 @@
   (gen/let [registry-name valid-name
             base-fn (gen/elements
                       [#(prometheus/collector-registry %)
+                       #(do % (prometheus/collector-registry))
                        #(pushable-collector-registry
                           {:job %
                            :push-gateway "0:8080"})
