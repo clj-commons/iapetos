@@ -16,7 +16,7 @@
 (def metric-string
   (gen/let [first-char gen/char-alpha
             last-char  gen/char-alpha-numeric
-            rest-chars gen/string-ascii]
+            rest-chars gen/string-alpha-numeric]
     (gen/return
       (str
         (apply str first-char rest-chars)

@@ -1,6 +1,7 @@
 (ns iapetos.collector
   (:require [iapetos.metric :as metric])
   (:import [io.prometheus.client
+            Collector$MetricFamilySamples
             CollectorRegistry
             SimpleCollector
             SimpleCollector$Builder]))
@@ -101,12 +102,19 @@
 ;; ## Implementation for Raw Collectors
 
 (defn- raw-metric
-  [v]
-  {:name      (.getName (class v))
-   :namespace "raw"})
+  [^io.prometheus.client.Collector v]
+  (if-let [n (some-> (.collect v)
+                     ^Collector$MetricFamilySamples (first)
+                     (.name))]
+    (let [[a b] (.split n "_" 2)]
+      (if b
+        {:name b, :namespace a}
+        {:name a, :namespace "raw"}))
+    {:name      (str (.getSimpleName (class v)) "_" (hash v))
+     :namespace "raw"}))
 
 (extend-protocol Collector
-  io.prometheus.client.SimpleCollector
+  io.prometheus.client.Collector
   (instantiate [this _]
     this)
   (metric [this]
@@ -114,41 +122,16 @@
   (label-instance [_ instance values]
     (if-not (empty? values)
       (throw (UnsupportedOperationException.))
-      instance))
-
-  io.prometheus.client.Collector
-  (instantiate [this _]
-    this)
-  (metric [this]
-    (raw-metric this))
-  (label-instance [_ instance _]
-    instance))
+      instance)))
 
 ;; ## Named Collector
 
 (defn named
-  [metric ^io.prometheus.client.Collector instance]
+  [metric collector]
   (reify Collector
-    (instantiate [_ _]
-      instance)
+    (instantiate [_ options]
+      (instantiate collector options))
     (metric [_]
       metric)
     (label-instance [_ instance values]
-      (when-not (empty? values)
-        (throw (UnsupportedOperationException.)))
-      instance)))
-
-;; ## Collector Bundle
-
-(defn bundle
-  [metric instances]
-  (let [instances (filter identity instances)]
-    (reify Collector
-      (instantiate [_ _]
-        instances)
-      (metric [_]
-        metric)
-      (label-instance [_ instance values]
-        (if-not (empty? values)
-          (throw (UnsupportedOperationException.))
-          instance)))))
+      (label-instance collector instance values))))
