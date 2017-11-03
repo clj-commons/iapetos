@@ -26,9 +26,10 @@ All metrics have to be registered with a collector registry before being used:
   (-> (prometheus/collector-registry)
       (prometheus/register
         (prometheus/histogram :app/duration-seconds)
-        (prometheus/gauge     :app/last-success-unixtime {:lazy? true})
-        (prometheus/gauge     :app/active-users-total    {:lazy? true})
-        (prometheus/counter   :app/runs-total))))
+        (prometheus/gauge     :app/active-users-total)
+        (prometheus/counter   :app/runs-total))
+      (prometheus/register-lazy
+        (prometheus/gauge     :app/last-success-unixtime))))
 ```
 
 Now, they are ready to be set and changed:
