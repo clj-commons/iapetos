@@ -112,10 +112,9 @@
   (metric [this]
     (raw-metric this))
   (label-instance [_ instance values]
-    ;; not possible to read required labels from SimpleCollector :|
-    #_(let [labels (.-labelNames ^SimpleCollector instance)]
-        (set-labels instance labels values))
-    instance)
+    (if-not (empty? values)
+      (throw (UnsupportedOperationException.))
+      instance))
 
   io.prometheus.client.Collector
   (instantiate [this _]
@@ -134,8 +133,10 @@
       instance)
     (metric [_]
       metric)
-    (label-instance [_ _ _]
-      (throw (UnsupportedOperationException.)))))
+    (label-instance [_ instance values]
+      (when-not (empty? values)
+        (throw (UnsupportedOperationException.)))
+      instance)))
 
 ;; ## Collector Bundle
 
@@ -147,5 +148,7 @@
         instances)
       (metric [_]
         metric)
-      (label-instance [_ _ _]
-        (throw (UnsupportedOperationException.))))))
+      (label-instance [_ instance values]
+        (if-not (empty? values)
+          (throw (UnsupportedOperationException.))
+          instance)))))
