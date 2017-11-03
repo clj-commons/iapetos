@@ -41,6 +41,12 @@
       job
       push-gateway
       grouping-key))
+  (register-lazy [_ metric collector]
+    (PushableRegistry.
+      (registry/register-lazy internal-registry metric collector)
+      job
+      push-gateway
+      grouping-key))
   (subsystem [_ subsystem-name]
     (PushableRegistry.
       (registry/subsystem internal-registry subsystem-name)

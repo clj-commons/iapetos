@@ -1,6 +1,7 @@
 (ns iapetos.collector
   (:require [iapetos.metric :as metric])
   (:import [io.prometheus.client
+            Collector$MetricFamilySamples
             CollectorRegistry
             SimpleCollector
             SimpleCollector$Builder]))
@@ -9,14 +10,13 @@
 
 (defprotocol Collector
   "Protocol for Collectors to be registered with a iapetos registry."
-  (instantiate [this registry registry-options]
-    "Return a `clojure.lang.Delay` with an instance of this collector
-     registered to the given `CollectorRegistry`.")
+  (instantiate [this registry-options]
+    "Return a collector instance that can be registered with collector
+     registries.")
   (metric [this]
     "Return a `iapetos.metric/Metric` for this collector.")
   (label-instance [this instance values]
     "Add labels to the given collector instance produced by `instantiate`."))
-
 
 ;; ## Labels
 
@@ -58,24 +58,19 @@
                                 description
                                 subsystem
                                 labels
-                                labels-for-builder
                                 builder-constructor
                                 lazy?]
   Collector
-  (instantiate [this registry registry-options]
-    (let [subsystem (check-subsystem this registry-options)
-          deferred-collector (delay
-                               (-> ^SimpleCollector$Builder
-                                   (builder-constructor)
-                                   (.name name)
-                                   (.namespace namespace)
-                                   (.help description)
-                                   (.labelNames (label-array labels))
-                                   (cond-> subsystem (.subsystem subsystem))
-                                   (.register ^CollectorRegistry registry)))]
-      (when-not lazy?
-        @deferred-collector)
-      deferred-collector))
+  (instantiate [this registry-options]
+    (let [subsystem (check-subsystem this registry-options)]
+      (-> ^SimpleCollector$Builder
+          (builder-constructor)
+          (.name name)
+          (.namespace namespace)
+          (.help description)
+          (.labelNames (label-array labels))
+          (cond-> subsystem (.subsystem subsystem))
+          (.create))))
   (metric [_]
     {:name      name
      :namespace namespace})
@@ -101,67 +96,42 @@
      :description         description
      :subsystem           subsystem
      :labels              (label-names labels)
-     :labels-for-builder  (label-array labels)
      :builder-constructor builder-constructor
      :lazy?               lazy?}))
 
 ;; ## Implementation for Raw Collectors
 
 (defn- raw-metric
-  [v]
-  {:name      (.getName (class v))
-   :namespace "raw"})
+  [^io.prometheus.client.Collector v]
+  (if-let [n (some-> (.collect v)
+                     ^Collector$MetricFamilySamples (first)
+                     (.name))]
+    (let [[a b] (.split n "_" 2)]
+      (if b
+        {:name b, :namespace a}
+        {:name a, :namespace "raw"}))
+    {:name      (str (.getSimpleName (class v)) "_" (hash v))
+     :namespace "raw"}))
 
 (extend-protocol Collector
-  io.prometheus.client.SimpleCollector
-  (instantiate [this registry _]
-    (.register
-      ^io.prometheus.client.Collector this
-      ^CollectorRegistry registry)
-    (delay this))
+  io.prometheus.client.Collector
+  (instantiate [this _]
+    this)
   (metric [this]
     (raw-metric this))
   (label-instance [_ instance values]
-    ;; not possible to read required labels from SimpleCollector :|
-    #_(let [labels (.-labelNames ^SimpleCollector instance)]
-        (set-labels instance labels values))
-    instance)
-
-  io.prometheus.client.Collector
-  (instantiate [this registry _]
-    (.register
-      ^io.prometheus.client.Collector this
-      ^CollectorRegistry registry)
-    (delay this))
-  (metric [this]
-    (raw-metric this))
-  (label-instance [_ instance _]
-    instance))
+    (if-not (empty? values)
+      (throw (UnsupportedOperationException.))
+      instance)))
 
 ;; ## Named Collector
 
 (defn named
-  [metric ^io.prometheus.client.Collector instance]
+  [metric collector]
   (reify Collector
-    (instantiate [_ registry _]
-      (.register instance ^CollectorRegistry registry)
-      (delay instance))
+    (instantiate [_ options]
+      (instantiate collector options))
     (metric [_]
       metric)
-    (label-instance [_ _ _]
-      (throw (UnsupportedOperationException.)))))
-
-;; ## Collector Bundle
-
-(defn bundle
-  [metric instances]
-  (let [instances (filter identity instances)]
-    (reify Collector
-      (instantiate [_ registry _]
-        (doseq [^io.prometheus.client.Collector collector instances]
-          (.register collector registry))
-        (delay instances))
-      (metric [_]
-        metric)
-      (label-instance [_ _ _]
-        (throw (UnsupportedOperationException.))))))
+    (label-instance [_ instance values]
+      (label-instance collector instance values))))

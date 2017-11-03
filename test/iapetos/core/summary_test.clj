@@ -98,8 +98,8 @@
     [registry-fn (g/registry-fn)]
     (let [metric :app/duration-seconds
           registry (-> (registry-fn)
-                       (prometheus/register
-                         (prometheus/summary metric {:lazy? true})))
+                       (prometheus/register-lazy
+                         (prometheus/summary metric)))
           start      (System/nanoTime)
           stop-timer (prometheus/start-timer registry metric)
           _          (do (Thread/sleep 50) (stop-timer))

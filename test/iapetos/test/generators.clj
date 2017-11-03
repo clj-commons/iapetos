@@ -16,7 +16,7 @@
 (def metric-string
   (gen/let [first-char gen/char-alpha
             last-char  gen/char-alpha-numeric
-            rest-chars gen/string-ascii]
+            rest-chars gen/string-alpha-numeric]
     (gen/return
       (str
         (apply str first-char rest-chars)
@@ -63,6 +63,7 @@
   (gen/let [registry-name valid-name
             base-fn (gen/elements
                       [#(prometheus/collector-registry %)
+                       #(do % (prometheus/collector-registry))
                        #(pushable-collector-registry
                           {:job %
                            :push-gateway "0:8080"})
@@ -89,13 +90,16 @@
            registry (prometheus/register (registry-fn) collector)]
        (gen/return (registry metric))))))
 
+(def collector-constructor
+  (gen/elements
+    [prometheus/counter
+     prometheus/gauge
+     prometheus/histogram
+     prometheus/summary]))
+
 (def collectors
   (gen/vector
-    (gen/let [metric metric
-              metric-fn (gen/elements
-                          [prometheus/counter
-                           prometheus/gauge
-                           prometheus/histogram
-                           prometheus/summary])]
+    (gen/let [metric    metric
+              metric-fn collector-constructor]
       (gen/return
         (metric-fn metric)))))
