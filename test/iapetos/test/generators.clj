@@ -89,13 +89,16 @@
            registry (prometheus/register (registry-fn) collector)]
        (gen/return (registry metric))))))
 
+(def collector-constructor
+  (gen/elements
+    [prometheus/counter
+     prometheus/gauge
+     prometheus/histogram
+     prometheus/summary]))
+
 (def collectors
   (gen/vector
-    (gen/let [metric metric
-              metric-fn (gen/elements
-                          [prometheus/counter
-                           prometheus/gauge
-                           prometheus/histogram
-                           prometheus/summary])]
+    (gen/let [metric    metric
+              metric-fn collector-constructor]
       (gen/return
         (metric-fn metric)))))
