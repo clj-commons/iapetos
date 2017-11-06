@@ -68,10 +68,10 @@
                           {:job %
                            :push-gateway "0:8080"})
                        (constantly prometheus/default-registry)])]
-    (let [registry (base-fn registry-name)]
-      (.clear ^CollectorRegistry (iapetos.registry/raw registry))
-      (gen/return
-        (fn []
+    (gen/return
+      (fn []
+        (let [registry (base-fn registry-name)]
+          (.clear ^CollectorRegistry (iapetos.registry/raw registry))
           (reduce
             (fn [r f]
               (f r))
