@@ -216,7 +216,7 @@
    was passed in."
   (fn
     ([collector]
-     (ops/increment collector 1.0)
+     (ops/increment collector)
      collector)
     ([a b]
      (?-> a
@@ -252,7 +252,7 @@
    was passed in."
   (fn
     ([collector]
-     (ops/decrement collector 1.0)
+     (ops/decrement collector)
      collector)
     ([a b]
      (?-> a
