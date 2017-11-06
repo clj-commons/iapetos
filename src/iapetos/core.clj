@@ -59,6 +59,16 @@
   [registry metric collector]
   (registry/register registry metric collector))
 
+(defn ^{:added "0.1.8"} unregister
+  "Unregister the given collectors."
+  [registry & collector-names]
+  (reduce registry/unregister registry collector-names))
+
+(defn ^{:added "0.1.8"} clear
+  "Unregister the given collectors."
+  [registry]
+  (registry/clear registry))
+
 (defn subsystem
   "Create a new registry bound to the given subsystem. The resulting value will
    not have access to any of the original registry's collectors.

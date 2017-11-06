@@ -17,6 +17,10 @@
   (register-lazy [registry metric collector]
     "Add the given `iapetos.collector/Collector` to the registry using the
      given name, but only actually register it on first use.")
+  (unregister [registry metric]
+    "Unregister the collector under the given name from the registry.")
+  (clear [registry]
+    "Clear the registry, removing all collectors from it.")
   (get [registry metric labels]
     "Retrieve the collector instance associated with the given metric,
      setting the given labels.")
@@ -27,17 +31,25 @@
 
 ;; ## Implementation
 
+(declare set-collectors)
+
 (deftype IapetosRegistry [registry-name registry options collectors]
   Registry
   (register [this metric collector]
     (->> (collectors/prepare registry metric collector options)
-         (collectors/register)
-         (collectors/insert collectors)
-         (IapetosRegistry. registry-name registry options)))
+         (collectors/register collectors)
+         (set-collectors this)))
   (register-lazy [this metric collector]
     (->> (collectors/prepare registry metric collector options)
          (collectors/insert collectors)
-         (IapetosRegistry. registry-name registry options)))
+         (set-collectors this)))
+  (unregister [this metric]
+    (->> (collectors/lookup collectors metric options)
+         (collectors/unregister collectors)
+         (set-collectors this)))
+  (clear [this]
+    (->> (collectors/clear collectors)
+         (set-collectors this)))
   (subsystem [_ subsystem-name]
     (assert (string? subsystem-name))
     (IapetosRegistry.
@@ -64,16 +76,25 @@
   (valAt [this k default]
     (or (get this k {}) default)))
 
+(defn- set-collectors
+  [^IapetosRegistry r collectors]
+  (->IapetosRegistry
+    (.-registry-name r)
+    (.-registry r)
+    (.-options r)
+    collectors))
+
 ;; ## Constructor
 
 (defn create
   ([] (create "iapetos_registry"))
   ([registry-name]
-   (IapetosRegistry. registry-name (CollectorRegistry.) {} {})))
+   (create registry-name (CollectorRegistry.)))
+  ([registry-name ^CollectorRegistry registry]
+   (->> (collectors/initialize)
+        (IapetosRegistry. registry-name registry {}))))
 
 (def default
-  (IapetosRegistry.
+  (create
     "prometheus_default_registry"
-    (CollectorRegistry/defaultRegistry)
-    {}
-    {}))
+    (CollectorRegistry/defaultRegistry)))
