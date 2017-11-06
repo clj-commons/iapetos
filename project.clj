@@ -12,7 +12,7 @@
                  [io.prometheus/simpleclient_hotspot "0.1.0" :scope "provided"]]
   :profiles {:dev
              {:dependencies [[org.clojure/test.check "0.9.0"]
-                             [aleph "0.4.3"]]
+                             [aleph "0.4.4"]]
               :global-vars {*warn-on-reflection* true}}
              :codox
              {:plugins [[lein-codox "0.10.0"]]
