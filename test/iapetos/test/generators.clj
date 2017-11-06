@@ -98,8 +98,8 @@
      prometheus/summary]))
 
 (def collectors
-  (gen/vector
-    (gen/let [metric    metric
-              metric-fn collector-constructor]
-      (gen/return
-        (metric-fn metric)))))
+  (gen/let [metrics (gen/vector-distinct metric)]
+    (->> (gen/vector collector-constructor (count metrics))
+         (gen/fmap
+           (fn [fs]
+             (mapv #(%1 %2) fs metrics))))))
