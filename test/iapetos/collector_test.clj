@@ -41,5 +41,8 @@
          (is (= {:name      collector-name
                  :namespace collector-namespace}
                 (c/metric collector)))
+         (is (thrown?
+               UnsupportedOperationException
+               (c/label-instance collector collector {:label "value"})))
          (is (= collector
-                (c/label-instance collector collector {}))))))
+                (c/label-instance collector collector {}))) )))

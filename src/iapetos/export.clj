@@ -33,26 +33,20 @@
 
 ;; ### Implementation
 
+(declare call-on-internal)
+
 (deftype PushableRegistry [internal-registry job push-gateway grouping-key]
   registry/Registry
-  (register [_ metric collector]
-    (PushableRegistry.
-      (registry/register internal-registry metric collector)
-      job
-      push-gateway
-      grouping-key))
-  (register-lazy [_ metric collector]
-    (PushableRegistry.
-      (registry/register-lazy internal-registry metric collector)
-      job
-      push-gateway
-      grouping-key))
-  (subsystem [_ subsystem-name]
-    (PushableRegistry.
-      (registry/subsystem internal-registry subsystem-name)
-      job
-      push-gateway
-      grouping-key))
+  (register [this metric collector]
+    (call-on-internal this registry/register metric collector))
+  (register-lazy [this metric collector]
+    (call-on-internal this registry/register-lazy metric collector))
+  (unregister [this metric]
+    (call-on-internal this registry/unregister metric))
+  (clear [this]
+    (call-on-internal this registry/clear))
+  (subsystem [this subsystem-name]
+    (call-on-internal this registry/subsystem subsystem-name))
   (get [_ metric labels]
     (registry/get internal-registry metric labels))
   (raw [_]
@@ -76,6 +70,14 @@
     this))
 
 (alter-meta! #'->PushableRegistry assoc :private true)
+
+(defn- call-on-internal
+  [^PushableRegistry r f & args]
+  (PushableRegistry.
+    (apply f (.-internal-registry r) args)
+    (.-job r)
+    (.-push-gateway r)
+    (.-grouping-key r)))
 
 ;; ### Constructor
 
