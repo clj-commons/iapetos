@@ -16,4 +16,7 @@
       (and (registry :iapetos-internal/jvm-standard)
            (registry :iapetos-internal/jvm-gc)
            (registry :iapetos-internal/jvm-memory-pools)
-           (registry :iapetos-internal/jvm-threads)))))
+           (registry :iapetos-internal/jvm-threads)
+           (registry :iapetos-internal/jvm-buffer-pools)
+           (registry :iapetos-internal/jvm-class-loading)
+           (registry :iapetos-internal/jvm-version-info)))))

@@ -5,6 +5,9 @@
             Collector
             CollectorRegistry]
            [io.prometheus.client.hotspot
+            BufferPoolsExports
+            ClassLoadingExports
+            VersionInfoExports
             StandardExports
             MemoryPoolsExports
             GarbageCollectorExports
@@ -48,6 +51,33 @@
      :name      "jvm_threads"}
     (ThreadExports.)))
 
+(defn buffer-pools
+  "Exports metrics about JVM buffers.
+   Can be attached to a iapetos registry using `iapetos.core/register`."
+  []
+  (collector/named
+    {:namespace "iapetos_internal"
+     :name      "jvm_buffer_pools"}
+    (BufferPoolsExports.)))
+
+(defn class-loading
+  "Exports metrics about JVM classloading.
+   Can be attached to a iapetos registry using `iapetos.core/register`."
+  []
+  (collector/named
+    {:namespace "iapetos_internal"
+     :name      "jvm_class_loading"}
+    (ClassLoadingExports.)))
+
+ (defn version-info
+  "Exports JVM version info.
+   Can be attached to a iapetos registry using `iapetos.core/register`."
+  []
+  (collector/named
+    {:namespace "iapetos_internal"
+     :name      "jvm_version_info"}
+    (VersionInfoExports.)))
+
 ;; ## Initialize
 
 (defn initialize
@@ -58,4 +88,7 @@
         (standard)
         (gc)
         (memory-pools)
-        (threads))))
+        (threads)
+        (buffer-pools)
+        (class-loading)
+        (version-info))))
