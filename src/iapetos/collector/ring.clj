@@ -120,10 +120,10 @@
   (->> (labels-for options request)
        (registry :http/exceptions-total)))
 
-(defn- invoke-handler [handler-fn request respond raise]
+(defn- invoke-handler [handler request respond raise]
   (if (and respond raise)
-    (handler-fn request respond raise)
-    (handler-fn request)))
+    (handler request respond raise)
+    (handler request)))
 
 (defn- run-instrumented
   ([{:keys [handler] :as options} request]
@@ -145,6 +145,29 @@
                        (raise %))
          response   (invoke-handler handler request respond-fn raise-fn)]
      response)))
+
+(defn- run-expose
+  ([{:keys [path on-request registry handler] :as options}
+    {:keys [request-method uri] :as request}]
+   (if (= uri path)
+     (if (= request-method :get)
+       (do
+         (on-request registry)
+         (metrics-response registry))
+       {:status 405})
+     (invoke-handler handler request nil nil)))
+
+  ([{:keys [path on-request registry handler] :as options}
+    {:keys [request-method uri] :as request}
+     respond
+     raise]
+    (if (= uri path)
+      (if (= request-method :get)
+        (do
+          (on-request registry)
+          (respond (metrics-response registry)))
+        (respond {:status 405}))
+      (invoke-handler handler request respond raise))))
 
 (defn ring-fn [f options]
   (fn
@@ -194,15 +217,14 @@
   [handler registry
    & [{:keys [path on-request]
        :or   {path       "/metrics"
-              on-request identity}}]]
-  (fn [{:keys [request-method uri] :as request}]
-    (if (= uri path)
-      (if (= request-method :get)
-        (do
-          (on-request registry)
-          (metrics-response registry))
-        {:status 405})
-      (handler request))))
+              on-request identity}
+       :as options}]]
+  (let [options (assoc options
+                       :path path
+                       :on-request on-request
+                       :registry registry
+                       :handler  handler)]
+    (ring-fn run-expose options)))
 
 ;; ### Compound Middleware
 

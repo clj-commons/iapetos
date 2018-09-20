@@ -67,10 +67,10 @@
 
 (defspec t-wrap-instrumentation 200
   (prop/for-all
-   [registry-fn                         (g/registry-fn ring/initialize)
+   [registry-fn                                (g/registry-fn ring/initialize)
     {:keys [handler async? exception? labels]} gen-handler
-    {labels' :labels, :as request}      gen-request
-    wrap (gen/elements [ring/wrap-instrumentation ring/wrap-metrics])]
+    {labels' :labels, :as request}             gen-request
+    wrap                                       (gen/elements [ring/wrap-instrumentation ring/wrap-metrics])]
    (let [registry   (registry-fn)
          handler'   (wrap handler registry)
          start-time (System/nanoTime)
@@ -93,68 +93,77 @@
             (< 0.0 (:sum (prometheus/value histogram)) delta)
             (= 1.0 (prometheus/value counter)))))))
 
-(defspec t-wrap-metrics-expose 10
+(defspec t-wrap-metrics-expose 50
   (prop/for-all
-   [registry-fn (g/registry-fn ring/initialize)
-    path        (gen/fmap #(str "/" %) gen/string-alpha-numeric)
-    wrap        (gen/elements [ring/wrap-metrics-expose ring/wrap-metrics])]
-   (let [registry (registry-fn)
-         handler (-> (constantly {:status 200})
-                     (wrap registry {:path path}))]
+   [registry-fn         (g/registry-fn ring/initialize)
+    path                (gen/fmap #(str "/" %) gen/string-alpha-numeric)
+    [handler-fn async?] (gen/elements [[(constantly {:status 200}) false]
+                                       [(fn [_ respond _] (deliver respond {:status 200})) true]])
+    wrap                (gen/elements [ring/wrap-metrics-expose ring/wrap-metrics])]
+   (let [registry    (registry-fn)
+         response-fn (if async? async-response sync-response)
+         handler     (-> handler-fn
+                         (wrap registry {:path path}))]
      (and (= {:status 200}
-             (handler {:request-method :get,  :uri (str path "__/health")}))
+             (response-fn handler {:request-method :get, :uri (str path "__/health")}))
           (= {:status 405}
-             (handler {:request-method :post, :uri path}))
+             (response-fn handler {:request-method :post, :uri path}))
           (let [{:keys [status headers body]}
-                (handler {:request-method :get, :uri path})]
+                (response-fn handler {:request-method :get, :uri path})]
             (and (= 200 status)
                  (contains? headers "Content-Type")
                  (re-matches #"text/plain(;.*)?" (headers "Content-Type"))
                  (= (export/text-format registry) body)))))))
 
-(defspec t-wrap-metrics-expose-with-on-request-hook 10
+(defspec t-wrap-metrics-expose-with-on-request-hook 50
   (prop/for-all
-   [registry-fn (g/registry-fn ring/initialize)
-    path        (gen/fmap #(str "/" %) gen/string-alpha-numeric)
-    wrap        (gen/elements [ring/wrap-metrics-expose ring/wrap-metrics])]
-   (let [registry (-> (registry-fn)
-                      (prometheus/register
-                       (prometheus/counter :http/scrape-requests-total)))
+   [registry-fn         (g/registry-fn ring/initialize)
+    path                (gen/fmap #(str "/" %) gen/string-alpha-numeric)
+    [handler-fn async?] (gen/elements [[(constantly {:status 200}) false]
+                                       [(fn [_ respond _] (deliver respond {:status 200})) true]])
+    wrap                (gen/elements [ring/wrap-metrics-expose ring/wrap-metrics])]
+   (let [registry      (-> (registry-fn)
+                           (prometheus/register
+                            (prometheus/counter :http/scrape-requests-total)))
+         response-fn   (if async? async-response sync-response)
          on-request-fn #(prometheus/inc % :http/scrape-requests-total)
-         handler (-> (constantly {:status 200})
-                     (wrap registry
-                           {:path path
-                            :on-request on-request-fn}))]
+         handler       (-> handler-fn
+                           (wrap registry
+                                 {:path       path
+                                  :on-request on-request-fn}))]
      (and (zero? (prometheus/value (registry :http/scrape-requests-total)))
-          (= 200 (:status (handler {:request-method :get, :uri path})))
+          (= 200 (:status (response-fn handler {:request-method :get, :uri path})))
           (= 1.0 (prometheus/value (registry :http/scrape-requests-total)))))))
 
-(defspec t-wrap-metrics-with-labels 10
+(defspec t-wrap-metrics-with-labels 50
   (prop/for-all
-   [registry-fn   (g/registry-fn
-                   #(ring/initialize % {:labels [:extraReq :extraResp]}))
-    request-label  (gen/not-empty gen/string-alpha-numeric)
-    response-label (gen/not-empty gen/string-alpha-numeric)
-    wrap           (gen/elements [ring/wrap-metrics ring/wrap-instrumentation])]
-   (let [registry (registry-fn)
-         response {:status       200
-                   :extra-labels {:extraResp response-label}}
-         request  {:request-method :get
-                   :uri            "/"
-                   :extra-labels  {:extraReq request-label}}
-         handler  (-> (constantly response)
-                      (wrap
-                       registry
-                       {:label-fn (fn [request response]
-                                    (merge
-                                     (:extra-labels request)
-                                     (:extra-labels response)))}))
-         labels {:extraReq    request-label
-                 :extraResp   response-label
-                 :status      "200"
-                 :statusClass "2XX"
-                 :method      "GET"
-                 :path        "/"}]
+   [registry-fn         (g/registry-fn
+                         #(ring/initialize % {:labels [:extraReq :extraResp]}))
+    [handler-fn async?] (gen/elements [[#(constantly %) false]
+                                       [#(fn [_ respond _] (deliver respond %)) true]])
+    request-label       (gen/not-empty gen/string-alpha-numeric)
+    response-label      (gen/not-empty gen/string-alpha-numeric)
+    wrap                (gen/elements [ring/wrap-metrics ring/wrap-instrumentation])]
+   (let [registry    (registry-fn)
+         response-fn (if async? async-response sync-response)
+         response    {:status       200
+                      :extra-labels {:extraResp response-label}}
+         request     {:request-method :get
+                      :uri            "/"
+                      :extra-labels   {:extraReq request-label}}
+         handler     (-> (handler-fn response)
+                         (wrap
+                          registry
+                          {:label-fn (fn [request response]
+                                       (merge
+                                        (:extra-labels request)
+                                        (:extra-labels response)))}))
+         labels      {:extraReq    request-label
+                      :extraResp   response-label
+                      :status      "200"
+                      :statusClass "2XX"
+                      :method      "GET"
+                      :path        "/"}]
      (and (zero? (prometheus/value (registry :http/requests-total labels)))
-          (= 200 (:status (handler request)))
+          (= 200 (:status (response-fn handler request)))
           (= 1.0 (prometheus/value (registry :http/requests-total labels)))))))
