@@ -129,17 +129,21 @@
        (->> (ensure-response-map response)
             (record-metrics! options delta request))
        response)))
+
   ([{:keys [handler] :as options} request respond raise]
    (let [start-time (System/nanoTime)
+         ex-counter (exception-counter-for options request)
          respond-fn #(let [delta (- (System/nanoTime) start-time)
                            _     (->> (ensure-response-map %)
                                       (record-metrics! options delta request))]
                        (respond %))
-         raise-fn   #(let [counter (exception-counter-for options request)
-                           _       (ex/record-exception! counter %)]
-                       (raise %))
-         response   (handler request respond-fn raise-fn)]
-     response)))
+         raise-fn   #(do (ex/record-exception! ex-counter %)
+                         (raise %))]
+     (try
+       (handler request respond-fn raise-fn)
+       (catch Throwable t
+         (ex/record-exception! ex-counter t)
+         (raise t))))))
 
 (defn- run-expose
   ([{:keys [path on-request registry handler] :as options}
@@ -154,15 +158,15 @@
 
   ([{:keys [path on-request registry handler] :as options}
     {:keys [request-method uri] :as request}
-     respond
-     raise]
-    (if (= uri path)
-      (if (= request-method :get)
-        (do
-          (on-request registry)
-          (respond (metrics-response registry)))
-        (respond {:status 405}))
-      (handler request respond raise))))
+    respond
+    raise]
+   (if (= uri path)
+     (if (= request-method :get)
+       (do
+         (on-request registry)
+         (respond (metrics-response registry)))
+       (respond {:status 405}))
+     (handler request respond raise))))
 
 (defn ring-fn [f options]
   (fn
