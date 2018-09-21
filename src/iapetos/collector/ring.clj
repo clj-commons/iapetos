@@ -120,16 +120,11 @@
   (->> (labels-for options request)
        (registry :http/exceptions-total)))
 
-(defn- invoke-handler [handler request respond raise]
-  (if (and respond raise)
-    (handler request respond raise)
-    (handler request)))
-
 (defn- run-instrumented
   ([{:keys [handler] :as options} request]
    (ex/with-exceptions (exception-counter-for options request)
      (let [start-time (System/nanoTime)
-           response   (invoke-handler handler request nil nil)
+           response   (handler request)
            delta      (- (System/nanoTime) start-time)]
        (->> (ensure-response-map response)
             (record-metrics! options delta request))
@@ -143,7 +138,7 @@
          raise-fn   #(let [counter (exception-counter-for options request)
                            _       (ex/record-exception! counter %)]
                        (raise %))
-         response   (invoke-handler handler request respond-fn raise-fn)]
+         response   (handler request respond-fn raise-fn)]
      response)))
 
 (defn- run-expose
@@ -155,7 +150,7 @@
          (on-request registry)
          (metrics-response registry))
        {:status 405})
-     (invoke-handler handler request nil nil)))
+     (handler request)))
 
   ([{:keys [path on-request registry handler] :as options}
     {:keys [request-method uri] :as request}
@@ -167,7 +162,7 @@
           (on-request registry)
           (respond (metrics-response registry)))
         (respond {:status 405}))
-      (invoke-handler handler request respond raise))))
+      (handler request respond raise))))
 
 (defn ring-fn [f options]
   (fn
