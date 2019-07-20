@@ -5,7 +5,7 @@ Client][java-client], providing idiomatic and simple access to commonly used
 functionality while retaining low-level flexibility for tackling more complex
 tasks.
 
-[![Build Status](https://travis-ci.org/clj-commons/iapetos.svg?branch=master)](https://travis-ci.org/clj-commons/iapetos)
+[![CircleCI](https://circleci.com/gh/clj-commons/iapetos.svg?style=svg)](https://circleci.com/gh/clj-commons/iapetos)
 [![Clojars Project](https://img.shields.io/clojars/v/iapetos.svg)](https://clojars.org/iapetos)
 [![codecov](https://codecov.io/gh/xsc/iapetos/branch/master/graph/badge.svg)](https://codecov.io/gh/xsc/iapetos)
 
