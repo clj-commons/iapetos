@@ -1,6 +1,6 @@
 (defproject iapetos "0.1.9-SNAPSHOT"
   :description "A Clojure Prometheus Client"
-  :url "https://github.com/xsc/iapetos"
+  :url "https://github.com/clj-commons/iapetos"
   :license {:name "MIT License"
             :url "https://opensource.org/licenses/MIT"
             :year 2016
@@ -20,7 +20,7 @@
               :codox {:project {:name "iapetos"}
                       :metadata {:doc/format :markdown}
                       :themes [:rdash]
-                      :source-uri "https://github.com/xsc/iapetos/blob/v{version}/{filepath}#L{line}"
+                      :source-uri "https://github.com/clj-commons/iapetos/blob/v{version}/{filepath}#L{line}"
                       :namespaces [iapetos.core
                                    iapetos.export
                                    iapetos.standalone
