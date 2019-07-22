@@ -15,7 +15,7 @@ tasks.
 
 ### Registering Metrics
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.core.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.core.html)
 
 All metrics have to be registered with a collector registry before being used:
 
@@ -59,7 +59,7 @@ All metric operations can be called directly on such a collector, i.e.:
 
 ### Metric Export
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.export.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.export.html)
 
 Metrics can be transformed into a textual representation using
 `iapetos.export/text-format`:
@@ -82,7 +82,7 @@ This could now be exposed e.g. using an HTTP endpoint (see also iapetos'
 
 ### Metric Push
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.export.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.export.html)
 
 Another way of communicating metrics to Prometheus is using push mechanics,
 intended to be used for e.g. batch jobs that might not live long enough to be
@@ -192,7 +192,7 @@ collectors.)
 
 ### Code Block Instrumentation
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.core.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.core.html)
 
 iapetos provides a number of macros that you can use to instrument parts of your
 code, e.g. `with-failure-timestamp` to record the last time a task has thrown an
@@ -210,7 +210,7 @@ them around existing functions.
 
 ### JVM Metrics
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.collector.jvm.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.collector.jvm.html)
 
 Some characteristics of your current JVM are always useful (e.g. memory
 usage, thread count, ...) and can be added to your registry using the
@@ -241,7 +241,7 @@ explicitly in your project's dependencies.
 
 ### Function Instrumentation
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.collector.fn.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.collector.fn.html)
 
 To collect metrics about specific functions, you can use the functionality
 provided in `iapetos.collector.fn`:
@@ -267,7 +267,7 @@ declaration will remove the instrumentation again.
 
 ### Ring
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.collector.ring.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.collector.ring.html)
 
 `iapetos.collector.ring` offers middlewares to
 
@@ -305,7 +305,7 @@ smooth migration.
 
 ### Standalone HTTP Server
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.standalone.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.standalone.html)
 
 A zero-dependency standalone HTTP server is included in `iapetos.standalone`
 and can be run using:
