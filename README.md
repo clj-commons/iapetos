@@ -11,6 +11,8 @@ tasks.
 
 [java-client]: https://github.com/prometheus/client_java
 
+**N.B.** Since version 0.1.9, iapetos is released as `clj-commons/iapetos` on Clojars. Previously it was available as `xsc/iapetos`.
+
 ## Basic Usage
 
 ### Registering Metrics
@@ -320,6 +322,12 @@ and can be run using:
 This is particularly useful for applications that do not expose an HTTP port
 themselves but shall still be scraped by Prometheus. By default, metrics will
 be exposed at `/metrics`.
+
+## History
+
+iapetos was originally created by Yannick Scherer ([@xsc](https://github.com/xsc)). In July 2019 it was moved to CLJ Commons for continued maintenance.
+
+It could previously be found at [xsc/iapetos](https://github.com/xsc/iapetos). [clj-commons/iapetos](https://github.com/clj-commons/iapetos) is the canonical repository now.
 
 ## License
 
