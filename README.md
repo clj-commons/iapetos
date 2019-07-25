@@ -6,7 +6,7 @@ functionality while retaining low-level flexibility for tackling more complex
 tasks.
 
 [![CircleCI](https://circleci.com/gh/clj-commons/iapetos.svg?style=svg)](https://circleci.com/gh/clj-commons/iapetos)
-[![Clojars Project](https://img.shields.io/clojars/v/iapetos.svg)](https://clojars.org/iapetos)
+[![Clojars Project](https://img.shields.io/clojars/v/clj-commons/iapetos.svg)](https://clojars.org/clj-commons/iapetos)
 [![codecov](https://codecov.io/gh/xsc/iapetos/branch/master/graph/badge.svg)](https://codecov.io/gh/xsc/iapetos)
 
 [java-client]: https://github.com/prometheus/client_java
