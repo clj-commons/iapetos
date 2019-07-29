@@ -305,6 +305,8 @@ These are, purposefully, compatible with the metrics produced by
 [prometheus-clj](https://github.com/soundcloud/prometheus-clj), as to allow a
 smooth migration.
 
+Ring supports sync and async [handlers](https://github.com/ring-clojure/ring/wiki/Concepts#handlers), metrics are collected for both by `iapetos.collector.ring` ns.
+
 ### Standalone HTTP Server
 
 [__Documentation__](https://clj-commons.github.io/iapetos/iapetos.standalone.html)
