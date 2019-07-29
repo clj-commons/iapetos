@@ -5,17 +5,19 @@ Client][java-client], providing idiomatic and simple access to commonly used
 functionality while retaining low-level flexibility for tackling more complex
 tasks.
 
-[![Build Status](https://travis-ci.org/xsc/iapetos.svg?branch=master)](https://travis-ci.org/xsc/iapetos)
-[![Clojars Project](https://img.shields.io/clojars/v/iapetos.svg)](https://clojars.org/iapetos)
+[![CircleCI](https://circleci.com/gh/clj-commons/iapetos.svg?style=svg)](https://circleci.com/gh/clj-commons/iapetos)
+[![Clojars Project](https://img.shields.io/clojars/v/clj-commons/iapetos.svg)](https://clojars.org/clj-commons/iapetos)
 [![codecov](https://codecov.io/gh/xsc/iapetos/branch/master/graph/badge.svg)](https://codecov.io/gh/xsc/iapetos)
 
 [java-client]: https://github.com/prometheus/client_java
+
+**N.B.** Since version 0.1.9, iapetos is released as `clj-commons/iapetos` on Clojars. Previously it was available as `xsc/iapetos`.
 
 ## Basic Usage
 
 ### Registering Metrics
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.core.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.core.html)
 
 All metrics have to be registered with a collector registry before being used:
 
@@ -59,7 +61,7 @@ All metric operations can be called directly on such a collector, i.e.:
 
 ### Metric Export
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.export.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.export.html)
 
 Metrics can be transformed into a textual representation using
 `iapetos.export/text-format`:
@@ -82,7 +84,7 @@ This could now be exposed e.g. using an HTTP endpoint (see also iapetos'
 
 ### Metric Push
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.export.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.export.html)
 
 Another way of communicating metrics to Prometheus is using push mechanics,
 intended to be used for e.g. batch jobs that might not live long enough to be
@@ -192,7 +194,7 @@ collectors.)
 
 ### Code Block Instrumentation
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.core.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.core.html)
 
 iapetos provides a number of macros that you can use to instrument parts of your
 code, e.g. `with-failure-timestamp` to record the last time a task has thrown an
@@ -210,7 +212,7 @@ them around existing functions.
 
 ### JVM Metrics
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.collector.jvm.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.collector.jvm.html)
 
 Some characteristics of your current JVM are always useful (e.g. memory
 usage, thread count, ...) and can be added to your registry using the
@@ -241,7 +243,7 @@ explicitly in your project's dependencies.
 
 ### Function Instrumentation
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.collector.fn.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.collector.fn.html)
 
 To collect metrics about specific functions, you can use the functionality
 provided in `iapetos.collector.fn`:
@@ -267,7 +269,7 @@ declaration will remove the instrumentation again.
 
 ### Ring
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.collector.ring.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.collector.ring.html)
 
 `iapetos.collector.ring` offers middlewares to
 
@@ -305,7 +307,7 @@ smooth migration.
 
 ### Standalone HTTP Server
 
-[__Documentation__](https://xsc.github.io/iapetos/iapetos.standalone.html)
+[__Documentation__](https://clj-commons.github.io/iapetos/iapetos.standalone.html)
 
 A zero-dependency standalone HTTP server is included in `iapetos.standalone`
 and can be run using:
@@ -320,6 +322,12 @@ and can be run using:
 This is particularly useful for applications that do not expose an HTTP port
 themselves but shall still be scraped by Prometheus. By default, metrics will
 be exposed at `/metrics`.
+
+## History
+
+iapetos was originally created by Yannick Scherer ([@xsc](https://github.com/xsc)). In July 2019 it was moved to CLJ Commons for continued maintenance.
+
+It could previously be found at [xsc/iapetos](https://github.com/xsc/iapetos). [clj-commons/iapetos](https://github.com/clj-commons/iapetos) is the canonical repository now.
 
 ## License
 

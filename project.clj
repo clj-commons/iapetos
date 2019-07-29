@@ -1,18 +1,18 @@
-(defproject iapetos "0.1.9-SNAPSHOT"
+(defproject clj-commons/iapetos "0.1.9"
   :description "A Clojure Prometheus Client"
-  :url "https://github.com/xsc/iapetos"
+  :url "https://github.com/clj-commons/iapetos"
   :license {:name "MIT License"
             :url "https://opensource.org/licenses/MIT"
-            :year 2016
+            :year 2019
             :key "mit"}
-  :dependencies [[org.clojure/clojure "1.8.0" :scope "provided"]
-                 [io.prometheus/simpleclient "0.2.0"]
-                 [io.prometheus/simpleclient_common "0.2.0"]
-                 [io.prometheus/simpleclient_pushgateway "0.2.0"]
-                 [io.prometheus/simpleclient_hotspot "0.2.0" :scope "provided"]]
+  :dependencies [[org.clojure/clojure "1.10.0" :scope "provided"]
+                 [io.prometheus/simpleclient "0.6.0"]
+                 [io.prometheus/simpleclient_common "0.6.0"]
+                 [io.prometheus/simpleclient_pushgateway "0.6.0"]
+                 [io.prometheus/simpleclient_hotspot "0.6.0" :scope "provided"]]
   :profiles {:dev
              {:dependencies [[org.clojure/test.check "0.9.0"]
-                             [aleph "0.4.4"]]
+                             [aleph "0.4.6"]]
               :global-vars {*warn-on-reflection* true}}
              :codox
              {:plugins [[lein-codox "0.10.0"]]
@@ -20,7 +20,7 @@
               :codox {:project {:name "iapetos"}
                       :metadata {:doc/format :markdown}
                       :themes [:rdash]
-                      :source-uri "https://github.com/xsc/iapetos/blob/v{version}/{filepath}#L{line}"
+                      :source-uri "https://github.com/clj-commons/iapetos/blob/v{version}/{filepath}#L{line}"
                       :namespaces [iapetos.core
                                    iapetos.export
                                    iapetos.standalone
