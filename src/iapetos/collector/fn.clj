@@ -107,3 +107,11 @@
      :or {fn-name (subs (str fn-var) 2)}
      :as options}]
    (instrument!* registry fn-name fn-var options)))
+
+(defn instrument-namespace!
+  ([registry namespace] (instrument-namespace! registry namespace {}))
+  ([registry namespace options]
+   (->> namespace
+        ns-publics vals
+        (filter #(fn? (var-get %)))
+        (map #(instrument! registry % options)))))
