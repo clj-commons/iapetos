@@ -120,15 +120,24 @@
   (->> (labels-for options request)
        (registry :http/exceptions-total)))
 
+(defmacro safe [result & body]
+  `(try
+     (do ~@body)
+     (catch Throwable t# ~result)))
+
+(defn- runit [{:keys [handler] :as options} request]
+  (if (contains? options :exception-response)
+    (safe (:exception-response options) (ex/with-exceptions (exception-counter-for options request) (handler request)))
+    (ex/with-exceptions (exception-counter-for options request) (handler request))))
+
 (defn- run-instrumented
-  [{:keys [handler] :as options} request]
-  (ex/with-exceptions (exception-counter-for options request)
-    (let [start-time (System/nanoTime)
-          response   (handler request)
-          delta      (- (System/nanoTime) start-time)]
+  [options request]
+  (let [start-time (System/nanoTime)
+        response   (runit options request)
+        delta      (- (System/nanoTime) start-time)]
       (->> (ensure-response-map response)
            (record-metrics! options delta request))
-      response)))
+      response))
 
 (defn wrap-instrumentation
   "Wrap the given Ring handler to write metrics to the given registry:
