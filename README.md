@@ -306,6 +306,18 @@ These are, purposefully, compatible with the metrics produced by
 [prometheus-clj](https://github.com/soundcloud/prometheus-clj), as to allow a
 smooth migration.
 
+#### Exception Handling
+
+The default behavior in case of an uncaught exception in your ring handler
+is incrementing `http_exceptions_total` counter only and re-throwing the exception.
+
+By adding `:exception-response` to the options map you can set a custom ring response
+to be returned in case of an uncaught exception. 
+
+For example, adding `{:exception-response {:status 500 :body \"something bad happened\"}}`
+will also increment the relevant `http_requests_total` counter with 5XX statusClass
+and will mark the latency observation in `http_request_latency_seconds`"
+
 ### Standalone HTTP Server
 
 [__Documentation__](https://clj-commons.github.io/iapetos/iapetos.standalone.html)

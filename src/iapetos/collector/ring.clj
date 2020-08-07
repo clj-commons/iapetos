@@ -120,12 +120,14 @@
   (->> (labels-for options request)
        (registry :http/exceptions-total)))
 
-(defmacro safe [result & body]
+(defmacro safe 
+  "Evaluates `body` and returns `result` in case of an exception"
+  [result & body]
   `(try
      (do ~@body)
      (catch Throwable t# ~result)))
 
-(defn- runit [{:keys [handler] :as options} request]
+(defn- with-custom-exception-response [{:keys [handler] :as options} request]
   (if (contains? options :exception-response)
     (safe (:exception-response options) (ex/with-exceptions (exception-counter-for options request) (handler request)))
     (ex/with-exceptions (exception-counter-for options request) (handler request))))
@@ -133,7 +135,7 @@
 (defn- run-instrumented
   [options request]
   (let [start-time (System/nanoTime)
-        response   (runit options request)
+        response   (with-custom-exception-response options request)
         delta      (- (System/nanoTime) start-time)]
       (->> (ensure-response-map response)
            (record-metrics! options delta request))
@@ -158,7 +160,11 @@
 
    Since collectors, and thus their labels, have to be registered before they
    are ever used, you need to provide the list of `:labels` when calling
-   [[initialize]]."
+   [[initialize]].
+  
+   :exception-response can be set with a custom ring response map in case of an
+   uncaught exception in your ring handlers."
+  
   [handler registry
    & [{:keys [path-fn label-fn]
        :or {path-fn  :uri
@@ -209,7 +215,10 @@
 
    Since collectors, and thus their labels, have to be registered before they
    are ever used, you need to provide the list of `:labels` when calling
-   [[initialize]]."
+   [[initialize]].
+   
+   :exception-response can be set with a custom ring response map in case of an
+   uncaught exception in your ring handlers."
   [handler registry
    & [{:keys [path path-fn on-request label-fn]
        :or {path     "/metrics"
