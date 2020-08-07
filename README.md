@@ -314,7 +314,7 @@ is incrementing `http_exceptions_total` counter only and re-throwing the excepti
 By adding `:exception-response` to the options map you can set a custom ring response
 to be returned in case of an uncaught exception. 
 
-For example, adding `{:exception-response {:status 500 :body \"something bad happened\"}}`
+For example, adding `{:exception-response {:status 500 :body "something bad happened"}}`
 will also increment the relevant `http_requests_total` counter with 5XX statusClass
 and will mark the latency observation in `http_request_latency_seconds`"
 
