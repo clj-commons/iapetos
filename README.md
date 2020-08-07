@@ -316,7 +316,7 @@ to be returned in case of an uncaught exception.
 
 For example, adding `{:exception-response {:status 500 :body "something bad happened"}}`
 will also increment the relevant `http_requests_total` counter with 5XX statusClass
-and will mark the latency observation in `http_request_latency_seconds`"
+and will mark the latency observation in `http_request_latency_seconds`
 
 ### Standalone HTTP Server
 
