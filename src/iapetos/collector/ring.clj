@@ -81,9 +81,12 @@
 
 ;; ### Latency/Count
 
+(defn- exception? [response] (instance? Exception response))
+
 (defn- ensure-response-map
-  [response]
+  [response options]
   (cond (nil? response)          {:status 404}
+        (exception? response)    {:status (:exception-status options)}
         (not (map? response))    {:status 200}
         (not (:status response)) (assoc response :status 200)
         :else response))
@@ -120,14 +123,20 @@
   (->> (labels-for options request)
        (registry :http/exceptions-total)))
 
+(defn- safe [{:keys [exception-status]} f]
+  (if exception-status
+    (try (f) (catch Exception e e))
+    (f)))
+
 (defn- run-instrumented
   [{:keys [handler] :as options} request]
   (ex/with-exceptions (exception-counter-for options request)
     (let [start-time (System/nanoTime)
-          response   (handler request)
+          response   (safe options #(handler request))
           delta      (- (System/nanoTime) start-time)]
-      (->> (ensure-response-map response)
+      (->> (ensure-response-map response options)
            (record-metrics! options delta request))
+      (when (exception? response) (throw response))
       response)))
 
 (defn wrap-instrumentation
