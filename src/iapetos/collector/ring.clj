@@ -136,8 +136,9 @@
           delta      (- (System/nanoTime) start-time)]
       (->> (ensure-response-map response exception-status)
            (record-metrics! options delta request))
-      (when (exception? response) (throw response))
-      response)))
+      (if-not (exception? response)
+        response
+        (throw response)))))
 
 (defn wrap-instrumentation
   "Wrap the given Ring handler to write metrics to the given registry:
