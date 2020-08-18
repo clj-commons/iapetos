@@ -123,8 +123,8 @@
   (->> (labels-for options request)
        (registry :http/exceptions-total)))
 
-(defn- safe [{:keys [exception-status]} f]
-  (if exception-status
+(defn- safe [catch-exceptions? f]
+  (if catch-exceptions?
     (try (f) (catch Exception e e))
     (f)))
 
@@ -132,7 +132,7 @@
   [{:keys [handler exception-status] :as options} request]
   (ex/with-exceptions (exception-counter-for options request)
     (let [start-time (System/nanoTime)
-          response   (safe options #(handler request))
+          response   (safe exception-status #(handler request))
           delta      (- (System/nanoTime) start-time)]
       (->> (ensure-response-map response exception-status)
            (record-metrics! options delta request))
