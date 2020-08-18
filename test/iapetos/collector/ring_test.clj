@@ -11,6 +11,11 @@
 
 ;; ## Generators
 
+(defn- status-labels 
+  [status]
+  {:status      (str status)
+   :statusClass (str (quot status 100) "XX")}) 
+
 (def gen-handler
   (gen/one-of
     [(gen/let [status (gen/elements
@@ -22,8 +27,7 @@
        (gen/return
          {:handler (constantly {:status status})
           :exception? false
-          :labels {:status      (str status)
-                   :statusClass (str (quot status 100) "XX")}}))
+          :labels (status-labels status)}))
      (gen/return
        {:handler    (fn [_] (throw (Exception.)))
         :exception? true})]))
@@ -75,14 +79,15 @@
      {labels' :labels, :as request}      gen-request
      wrap (gen/elements [ring/wrap-instrumentation ring/wrap-metrics])]
     (let [registry   (registry-fn)
-          handler'   (wrap handler registry {:exception-status 500})
+          ex-status  500 
+          handler'   (wrap handler registry {:exception-status ex-status})
           start-time (System/nanoTime)
           response   (try
                        (handler' request)
                        (catch Throwable t
                          ::error))
           delta      (/ (- (System/nanoTime) start-time) 1e9)
-          labels     (merge (or labels {:status "500" :statusClass "5XX"}) labels')
+          labels     (merge (or labels (status-labels ex-status)) labels')
           ex-labels  (assoc labels' :exceptionClass "java.lang.Exception")
           counter    (registry :http/requests-total labels)
           histogram  (registry :http/request-latency-seconds labels)
