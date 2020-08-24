@@ -81,9 +81,12 @@
 
 ;; ### Latency/Count
 
+(defn- exception? [response] (instance? Exception response))
+
 (defn- ensure-response-map
-  [response]
+  [response exception-status]
   (cond (nil? response)          {:status 404}
+        (exception? response)    {:status exception-status}
         (not (map? response))    {:status 200}
         (not (:status response)) (assoc response :status 200)
         :else response))
@@ -120,15 +123,22 @@
   (->> (labels-for options request)
        (registry :http/exceptions-total)))
 
+(defn- safe [catch-exceptions? f]
+  (if catch-exceptions?
+    (try (f) (catch Exception e e))
+    (f)))
+
 (defn- run-instrumented
-  [{:keys [handler] :as options} request]
+  [{:keys [handler exception-status] :as options} request]
   (ex/with-exceptions (exception-counter-for options request)
     (let [start-time (System/nanoTime)
-          response   (handler request)
+          response   (safe exception-status #(handler request))
           delta      (- (System/nanoTime) start-time)]
-      (->> (ensure-response-map response)
+      (->> (ensure-response-map response exception-status)
            (record-metrics! options delta request))
-      response)))
+      (if-not (exception? response)
+        response
+        (throw response)))))
 
 (defn wrap-instrumentation
   "Wrap the given Ring handler to write metrics to the given registry:

@@ -306,6 +306,29 @@ These are, purposefully, compatible with the metrics produced by
 [prometheus-clj](https://github.com/soundcloud/prometheus-clj), as to allow a
 smooth migration.
 
+#### Exception Handling
+
+By default, if your ring handler throws an exception, only the `http_exceptions_total` counter would be incremented.
+This means that if you respond with a 500 error code on exceptions:
+
+1. These responses won't be counted on `http_requests_total`
+2. Their latencies won't be observed on `http_request_latency_seconds`
+
+To overcome this, you can use the optional `:exception-status` to define a status code to be reported 
+on both metrics, for example:
+
+```clojure
+(def app
+  (-> (fn [_] (throw (Exception.))) 
+      (ring/wrap-metrics registry {:path "/metrics" :exception-status 500})))
+```
+
+will increment all 3 metrics, assuming a 500 response code for exceptions:
+
+- `http_requests_total`
+- `http_request_latency_seconds`
+- `http_exceptions_total`
+
 ### Standalone HTTP Server
 
 [__Documentation__](https://clj-commons.github.io/iapetos/iapetos.standalone.html)
