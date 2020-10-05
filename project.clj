@@ -27,6 +27,7 @@
                                    #"^iapetos\.collector\..+"]}}
              :coverage
              {:plugins [[lein-cloverage "1.0.9"]]
+              :pedantic? :warn
               :dependencies [[org.clojure/tools.reader "1.2.2"]
                              [riddley "0.1.15"]]}}
   :aliases {"codox" ["with-profile" "+codox" "codox"]
