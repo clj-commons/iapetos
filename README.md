@@ -8,7 +8,7 @@ tasks.
 [![Clojars Project](https://img.shields.io/clojars/v/clj-commons/iapetos.svg)](https://clojars.org/clj-commons/iapetos)
 [![cljdoc badge](https://cljdoc.org/badge/clj-commons/iapetos)](https://cljdoc.org/d/clj-commons/iapetos/CURRENT)
 [![CircleCI](https://circleci.com/gh/clj-commons/iapetos.svg?style=svg)](https://circleci.com/gh/clj-commons/iapetos)
-[![codecov](https://codecov.io/gh/xsc/iapetos/branch/master/graph/badge.svg)](https://codecov.io/gh/xsc/iapetos)
+[![codecov](https://codecov.io/gh/clj-commons/iapetos/branch/master/graph/badge.svg)](https://codecov.io/gh/clj-commons/iapetos)
 
 [java-client]: https://github.com/prometheus/client_java
 
