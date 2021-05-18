@@ -5,13 +5,13 @@
             :url "https://opensource.org/licenses/MIT"
             :year 2019
             :key "mit"}
-  :dependencies [[org.clojure/clojure "1.10.0" :scope "provided"]
-                 [io.prometheus/simpleclient "0.8.0"]
-                 [io.prometheus/simpleclient_common "0.8.0"]
-                 [io.prometheus/simpleclient_pushgateway "0.8.0"]
-                 [io.prometheus/simpleclient_hotspot "0.8.0" :scope "provided"]]
+  :dependencies [[org.clojure/clojure "1.10.3" :scope "provided"]
+                 [io.prometheus/simpleclient "0.10.0"]
+                 [io.prometheus/simpleclient_common "0.10.0"]
+                 [io.prometheus/simpleclient_pushgateway "0.10.0"]
+                 [io.prometheus/simpleclient_hotspot "0.10.0" :scope "provided"]]
   :profiles {:dev
-             {:dependencies [[org.clojure/test.check "0.9.0"]
+             {:dependencies [[org.clojure/test.check "1.1.0"]
                              [aleph "0.4.6"]]
               :global-vars {*warn-on-reflection* true}}
              :codox
@@ -28,8 +28,8 @@
              :coverage
              {:plugins [[lein-cloverage "1.0.9"]]
               :pedantic? :warn
-              :dependencies [[org.clojure/tools.reader "1.2.2"]
-                             [riddley "0.1.15"]]}}
+              :dependencies [[org.clojure/tools.reader "1.3.5"]
+                             [riddley "0.2.0"]]}}
   :aliases {"codox" ["with-profile" "+codox" "codox"]
             "codecov" ["with-profile" "+coverage" "cloverage" "--codecov"]}
   :pedantic? :abort)
