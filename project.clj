@@ -1,4 +1,4 @@
-(defproject clj-commons/iapetos "0.1.11"
+(defproject clj-commons/iapetos "0.1.12"
   :description "A Clojure Prometheus Client"
   :url "https://github.com/clj-commons/iapetos"
   :license {:name "MIT License"
@@ -6,10 +6,10 @@
             :year 2019
             :key "mit"}
   :dependencies [[org.clojure/clojure "1.10.3" :scope "provided"]
-                 [io.prometheus/simpleclient "0.10.0"]
-                 [io.prometheus/simpleclient_common "0.10.0"]
-                 [io.prometheus/simpleclient_pushgateway "0.10.0"]
-                 [io.prometheus/simpleclient_hotspot "0.10.0" :scope "provided"]]
+                 [io.prometheus/simpleclient "0.12.0"]
+                 [io.prometheus/simpleclient_common "0.12.0"]
+                 [io.prometheus/simpleclient_pushgateway "0.12.0"]
+                 [io.prometheus/simpleclient_hotspot "0.12.0" :scope "provided"]]
   :profiles {:dev
              {:dependencies [[org.clojure/test.check "1.1.0"]
                              [aleph "0.4.6"]]
