@@ -1,10 +1,15 @@
-(defproject clj-commons/iapetos "0.1.12"
+(defproject clj-commons/iapetos (or (System/getenv "PROJECT_VERSION") "0.1.12")
   :description "A Clojure Prometheus Client"
   :url "https://github.com/clj-commons/iapetos"
   :license {:name "MIT License"
             :url "https://opensource.org/licenses/MIT"
             :year 2019
             :key "mit"}
+  :deploy-repositories [["clojars" {:url "https://repo.clojars.org"
+                                    :username :env/clojars_username
+                                    :password :env/clojars_password
+                                    :sign-releases true}]]
+
   :dependencies [[org.clojure/clojure "1.10.3" :scope "provided"]
                  [io.prometheus/simpleclient "0.12.0"]
                  [io.prometheus/simpleclient_common "0.12.0"]
