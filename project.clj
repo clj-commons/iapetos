@@ -17,7 +17,9 @@
                  [io.prometheus/simpleclient_hotspot "0.12.0" :scope "provided"]]
   :profiles {:dev
              {:dependencies [[org.clojure/test.check "1.1.0"]
-                             [aleph "0.4.6"]]
+                             [aleph "0.4.6"]
+                             [jmh-clojure "0.4.1"]]
+              :source-paths ["dev"]
               :global-vars {*warn-on-reflection* true}}
              :codox
              {:plugins [[lein-codox "0.10.0"]]

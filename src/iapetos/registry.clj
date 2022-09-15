@@ -56,7 +56,7 @@
       registry-name
       registry
       (update options :subsystem utils/join-subsystem subsystem-name)
-      {}))
+      (collectors/initialize)))
   (get [_ metric labels]
     (collectors/by collectors metric labels options))
   (raw [_]

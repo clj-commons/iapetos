@@ -62,6 +62,7 @@
 
 (defn as-map
   [metric additional-keys]
-  (merge
-    (metric-name metric)
-    additional-keys))
+  (merge (metric-name metric)
+         additional-keys
+         ;; user supplied (unsanitized) identifier e.g., :app/runs-total
+         {::id metric}))

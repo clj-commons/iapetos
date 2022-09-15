@@ -1,13 +1,18 @@
 (ns iapetos.registry.collectors
-  (:require [iapetos.registry.utils :as utils]
+  (:require [iapetos.metric :as metric]
+            [iapetos.registry.utils :as utils]
             [iapetos.collector :as collector])
   (:import [io.prometheus.client Collector CollectorRegistry]))
 
 ;; ## Init
 
 (defn initialize
+  "Initialize map for collectors.
+
+   - ::path-cache meta used to prevent additional metric path computation
+  requiring metric name sanitization."
   []
-  {})
+  ^{::path-cache {}} {})
 
 ;; ## Management
 
@@ -39,6 +44,7 @@
         instance (collector/instantiate collector options)]
     (-> {:collector  collector
          :metric     metric
+         :cache-key  [(collector/metric-id collector) options]
          :path       path
          :raw        instance
          :register   (register-collector-delay registry instance)
@@ -46,15 +52,18 @@
         (warn-lazy-deprecation!))))
 
 (defn insert
-  [collectors {:keys [path] :as collector}]
-  (assoc-in collectors path collector))
+  [collectors {:keys [path cache-key] :as collector}]
+  (-> collectors
+      (vary-meta update ::path-cache assoc cache-key path)
+      (assoc-in path collector)))
 
 (defn delete
-  [collectors {:keys [path] :as collector}]
-  (update-in collectors
-             (butlast path)
-             dissoc
-             (last path)))
+  [collectors {:keys [path cache-key] :as _collector}]
+  (-> collectors
+      (vary-meta update ::path-cache dissoc cache-key)
+      (update-in (butlast path)
+                 dissoc
+                 (last path))))
 
 (defn unregister
   [collectors {:keys [register unregister] :as collector}]
@@ -69,9 +78,9 @@
 
 (defn clear
   [collectors]
-  (->> (for [[namespace vs] collectors
-             [subsystem vs] vs
-             [_ collector] vs]
+  (->> (for [[_namespace vs] collectors
+             [_subsystem vs] vs
+             [_name collector] vs]
          collector)
        (reduce unregister collectors)))
 
@@ -83,7 +92,9 @@
 
 (defn lookup
   [collectors metric options]
-  (some->> (utils/metric->path metric options)
+  (some->> (or (get-in (meta collectors)
+                       [::path-cache [metric options]])
+               (utils/metric->path metric options))
            (get-in collectors)))
 
 (defn by

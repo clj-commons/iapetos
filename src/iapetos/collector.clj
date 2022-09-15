@@ -15,6 +15,8 @@
      registries.")
   (metric [this]
     "Return a `iapetos.metric/Metric` for this collector.")
+  (metric-id [this]
+    "Return user supplied (unsanitized) identifier for this collector.")
   (label-instance [this instance values]
     "Add labels to the given collector instance produced by `instantiate`."))
 
@@ -55,6 +57,7 @@
 (defrecord SimpleCollectorImpl [type
                                 namespace
                                 name
+                                metric-id
                                 description
                                 subsystem
                                 labels
@@ -74,6 +77,8 @@
   (metric [_]
     {:name      name
      :namespace namespace})
+  (metric-id [_]
+    metric-id)
   (label-instance [_ instance values]
     (set-labels instance labels values)))
 
@@ -85,7 +90,8 @@
            ^String subsystem
            ^String description
            labels
-           lazy?]}
+           lazy?]
+    ::metric/keys [id]}
    collector-type
    builder-constructor]
   {:pre [type name namespace description]}
@@ -93,6 +99,7 @@
     {:type                collector-type
      :namespace           namespace
      :name                name
+     :metric-id           id
      :description         description
      :subsystem           subsystem
      :labels              (label-names labels)
@@ -119,6 +126,8 @@
     this)
   (metric [this]
     (raw-metric this))
+  (metric-id [this]
+    (hash this))
   (label-instance [_ instance values]
     (if-not (empty? values)
       (throw (UnsupportedOperationException.))
@@ -132,6 +141,8 @@
     (instantiate [_ options]
       (instantiate collector options))
     (metric [_]
+      metric)
+    (metric-id [_]
       metric)
     (label-instance [_ instance values]
       (label-instance collector instance values))))
