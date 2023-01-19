@@ -44,4 +44,5 @@
     (let [{:keys [name namespace] :as r} (metric/as-map metric additional-keys)]
       (and (re-matches #"[a-zA-Z0-9_]+" name)
            (re-matches #"[a-zA-Z0-9_]+" namespace)
-           (= additional-keys (dissoc r :name :namespace))))))
+           (= additional-keys (dissoc r :name :namespace ::metric/id))
+           (= metric (::metric/id r))))))

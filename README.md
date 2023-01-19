@@ -5,17 +5,36 @@ Client][java-client], providing idiomatic and simple access to commonly used
 functionality while retaining low-level flexibility for tackling more complex
 tasks.
 
-[![CircleCI](https://circleci.com/gh/clj-commons/iapetos.svg?style=svg)](https://circleci.com/gh/clj-commons/iapetos)
 [![Clojars Project](https://img.shields.io/clojars/v/clj-commons/iapetos.svg)](https://clojars.org/clj-commons/iapetos)
-[![codecov](https://codecov.io/gh/xsc/iapetos/branch/master/graph/badge.svg)](https://codecov.io/gh/xsc/iapetos)
+[![cljdoc badge](https://cljdoc.org/badge/clj-commons/iapetos)](https://cljdoc.org/d/clj-commons/iapetos/CURRENT)
+[![CircleCI](https://circleci.com/gh/clj-commons/iapetos.svg?style=svg)](https://circleci.com/gh/clj-commons/iapetos)
+[![codecov](https://codecov.io/gh/clj-commons/iapetos/branch/master/graph/badge.svg)](https://codecov.io/gh/clj-commons/iapetos)
 
 [java-client]: https://github.com/prometheus/client_java
 
 **N.B.** Since version 0.1.9, iapetos is released as `clj-commons/iapetos` on Clojars. Previously it was available as `xsc/iapetos`.
 
-## Basic Usage
+### Table of Contents
+- [Basic Usage](#basic-usage)
+  - [Registering Metrics](#registering-metrics)
+  - [Metric Export](#metric-export)
+  - [Metric Push](#metric-push)
+  - [Labels](#labels)
+  - [Subsystems](#subsystems)
+- [Features](#fatures)
+  - [Code Block Instrumentation](#code-block-instrumentation)
+  - [JVM Metrics](#jvm-metrics)
+  - [Function Instrumentation](#function-instrumentation)
+  - [Ring](#ring)
+    - [Exception Handling](#exception-handling)
+  - [Standalone HTTP Server](#standalone-http-server)
+- [History](#history)
+- [License](#license)
 
-### Registering Metrics
+
+## Basic Usage <a name="basic-usage"></a>
+
+### Registering Metrics <a name="registering-metrics"></a>
 
 [__Documentation__](https://clj-commons.github.io/iapetos/iapetos.core.html)
 
@@ -59,7 +78,7 @@ All metric operations can be called directly on such a collector, i.e.:
 (prometheus/set     (registry :app/active-users-total) 22)
 ```
 
-### Metric Export
+### Metric Export <a name="metric-export"></a>
 
 [__Documentation__](https://clj-commons.github.io/iapetos/iapetos.export.html)
 
@@ -82,7 +101,7 @@ Metrics can be transformed into a textual representation using
 This could now be exposed e.g. using an HTTP endpoint (see also iapetos'
 [Ring](#ring) integration or the [standalone server](#standalone-http-server) ).
 
-### Metric Push
+### Metric Push <a name="metric-push"></a>
 
 [__Documentation__](https://clj-commons.github.io/iapetos/iapetos.export.html)
 
@@ -114,7 +133,7 @@ something like:
       (run-job! ...)))
 ```
 
-### Labels
+### Labels <a name="labels"></a>
 
 Prometheus allows for labels to be associated with metrics which can be declared
 for each collector before it is registered:
@@ -150,7 +169,7 @@ registry with a label/value-map:
 ;; ...
 ```
 
-### Subsystems
+### Subsystems <a name="subsystems"></a>
 
 In addition to namespaces, you can create collector declarations belonging to a
 subsystem, i.e.:
@@ -190,9 +209,9 @@ original registry's collectors, i.e. you have to reregister things like
 [function instrumentation](#function-instrumentation) or [Ring](#ring)
 collectors.)
 
-## Features
+## Features <a name="features"></a>
 
-### Code Block Instrumentation
+### Code Block Instrumentation <a name="code-block-instrumentation"></a>
 
 [__Documentation__](https://clj-commons.github.io/iapetos/iapetos.core.html)
 
@@ -210,7 +229,7 @@ See the auto-generated documentation for all available macros or the [function
 instrumentation](#function-instrumentation) section below on how to easily wrap
 them around existing functions.
 
-### JVM Metrics
+### JVM Metrics <a name="jvm-metrics"></a>
 
 [__Documentation__](https://clj-commons.github.io/iapetos/iapetos.collector.jvm.html)
 
@@ -241,7 +260,7 @@ Alternatively, you can selectively register the JVM collectors:
 __Note:__ You need to include the artifact `io.prometheus/simpleclient_hotspot`
 explicitly in your project's dependencies.
 
-### Function Instrumentation
+### Function Instrumentation <a name="function-instrumentation"></a>
 
 [__Documentation__](https://clj-commons.github.io/iapetos/iapetos.collector.fn.html)
 
@@ -267,7 +286,7 @@ Now, every call to `run-the-job!` will update a series of duration, success and
 failure metrics. Note, however, that re-evaluation of the `run-the-job!`
 declaration will remove the instrumentation again.
 
-### Ring
+### Ring <a name="ring"></a>
 
 [__Documentation__](https://clj-commons.github.io/iapetos/iapetos.collector.ring.html)
 
@@ -307,7 +326,30 @@ smooth migration.
 
 Ring supports sync and async [handlers](https://github.com/ring-clojure/ring/wiki/Concepts#handlers), metrics are collected for both by `iapetos.collector.ring` ns.
 
-### Standalone HTTP Server
+#### Exception Handling <a name="exception-handling"></a>
+
+By default, if your ring handler throws an exception, only the `http_exceptions_total` counter would be incremented.
+This means that if you respond with a 500 error code on exceptions:
+
+1. These responses won't be counted on `http_requests_total`
+2. Their latencies won't be observed on `http_request_latency_seconds`
+
+To overcome this, you can use the optional `:exception-status` to define a status code to be reported
+on both metrics, for example:
+
+```clojure
+(def app
+  (-> (fn [_] (throw (Exception.)))
+      (ring/wrap-metrics registry {:path "/metrics" :exception-status 500})))
+```
+
+will increment all 3 metrics, assuming a 500 response code for exceptions:
+
+- `http_requests_total`
+- `http_request_latency_seconds`
+- `http_exceptions_total`
+
+### Standalone HTTP Server <a name="standalone-http-server"></a>
 
 [__Documentation__](https://clj-commons.github.io/iapetos/iapetos.standalone.html)
 
@@ -325,13 +367,13 @@ This is particularly useful for applications that do not expose an HTTP port
 themselves but shall still be scraped by Prometheus. By default, metrics will
 be exposed at `/metrics`.
 
-## History
+## History <a name="history"></a>
 
 iapetos was originally created by Yannick Scherer ([@xsc](https://github.com/xsc)). In July 2019 it was moved to CLJ Commons for continued maintenance.
 
 It could previously be found at [xsc/iapetos](https://github.com/xsc/iapetos). [clj-commons/iapetos](https://github.com/clj-commons/iapetos) is the canonical repository now.
 
-## License
+## License <a name="license"></a>
 
 ```
 MIT License

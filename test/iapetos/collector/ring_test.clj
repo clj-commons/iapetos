@@ -11,6 +11,11 @@
 
 ;; ## Generators
 
+(defn- status-labels
+ [status]
+  {:status      (str status)
+   :statusClass (str (quot status 100) "XX")})
+
 (def gen-handler
   (gen/let [status (gen/elements
                     (concat
@@ -92,6 +97,34 @@
             (= 0.0 (prometheus/value ex-counter))
             (< 0.0 (:sum (prometheus/value histogram)) delta)
             (= 1.0 (prometheus/value counter)))))))
+
+(defspec t-wrap-instrumentation-with-exception-status 10
+  (prop/for-all
+   [registry-fn                                (g/registry-fn ring/initialize)
+    {:keys [handler exception? async? labels]} gen-handler
+    {labels' :labels, :as request}             gen-request
+    wrap                                       (gen/elements [ring/wrap-instrumentation ring/wrap-metrics])]
+   (let [registry   (registry-fn)
+         ex-status  500
+         handler'   (wrap handler registry {:exception-status ex-status})
+         start-time (System/nanoTime)
+         response   (if async?
+                      (async-response handler' request)
+                      (sync-response handler' request))
+         delta      (/ (- (System/nanoTime) start-time) 1e9)
+         labels     (merge (or labels (status-labels ex-status)) labels')
+         ex-labels  (assoc labels' :exceptionClass "java.lang.Exception")
+         counter    (registry :http/requests-total labels)
+         histogram  (registry :http/request-latency-seconds labels)
+         ex-counter (registry :http/exceptions-total ex-labels)]
+     (and
+      (< 0.0 (:sum (prometheus/value histogram)) delta)
+      (= 1.0 (prometheus/value counter))
+      (if exception?
+        (and (= response ::error)
+             (= 1.0 (prometheus/value ex-counter)))
+        (and (map? response)
+             (= 0.0 (prometheus/value ex-counter))))))))
 
 (defspec t-wrap-metrics-expose 50
   (prop/for-all

@@ -81,9 +81,12 @@
 
 ;; ### Latency/Count
 
+(defn- exception? [response] (instance? Exception response))
+
 (defn- ensure-response-map
-  [response]
+  [response exception-status]
   (cond (nil? response)          {:status 404}
+        (exception? response)    {:status exception-status}
         (not (map? response))    {:status 200}
         (not (:status response)) (assoc response :status 200)
         :else response))
@@ -120,25 +123,39 @@
   (->> (labels-for options request)
        (registry :http/exceptions-total)))
 
+(defn- safe [catch-exceptions? f]
+  (if catch-exceptions?
+    (try (f) (catch Exception e e))
+    (f)))
+
 (defn- run-instrumented
-  ([{:keys [handler] :as options} request]
+  ([{:keys [handler exception-status] :as options} request]
    (ex/with-exceptions (exception-counter-for options request)
      (let [start-time (System/nanoTime)
-           response   (handler request)
+           response   (safe exception-status #(handler request))
            delta      (- (System/nanoTime) start-time)]
-       (->> (ensure-response-map response)
+       (->> exception-status
+            (ensure-response-map response)
             (record-metrics! options delta request))
-       response)))
+       (if-not (exception? response)
+         response
+         (throw response)))))
 
-  ([{:keys [handler] :as options} request respond raise]
+  ([{:keys [handler exception-status] :as options} request respond raise]
    (let [start-time (System/nanoTime)
          ex-counter (exception-counter-for options request)
          respond-fn #(let [delta (- (System/nanoTime) start-time)
-                           _     (->> (ensure-response-map %)
+                           _     (->> exception-status
+                                      (ensure-response-map %)
                                       (record-metrics! options delta request))]
                        (respond %))
-         raise-fn   #(do (ex/record-exception! ex-counter %)
-                         (raise %))]
+         raise-fn   #(let [delta (- (System/nanoTime) start-time)]
+                       (when exception-status
+                         (->> exception-status
+                              (ensure-response-map %)
+                              (record-metrics! options delta request)))
+                       (ex/record-exception! ex-counter %)
+                       (raise %))]
      (try
        (handler request respond-fn raise-fn)
        (catch Throwable t

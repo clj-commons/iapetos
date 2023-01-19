@@ -28,12 +28,14 @@
    {:keys [duration?
            exceptions?
            last-failure?
-           run-count?]
+           run-count?
+           labels]
     :or {duration? true
          exceptions? true
          last-failure? true
-         run-count? true}}]
-  (let [labels {:fn fn-name, :result "success"}
+         run-count? true
+         labels {}}}]
+  (let [labels (into labels {:fn fn-name, :result "success"})
         failure-labels (assoc labels :result "failure")]
     (wrap->>
       f
@@ -67,24 +69,24 @@
    - `fn_runs_total`: a counter for fn runs, split by success/failure,
    - `fn_exceptions_total`: a counter for fn exceptions, split by class.
    "
-  [registry]
+  [registry & [{:keys [labels]}]]
   (->> (vector
          (prometheus/histogram
            :fn/duration-seconds
            {:description "the time elapsed during execution of the observed function."
-            :labels [:fn]})
+            :labels (into [:fn] labels)})
          (prometheus/gauge
            :fn/last-failure-unixtime
            {:description "the UNIX timestamp of the last time the observed function threw an exception."
-            :labels [:fn]})
+            :labels (into [:fn] labels)})
          (prometheus/counter
            :fn/runs-total
            {:description "the total number of finished runs of the observed function."
-            :labels [:fn :result]})
+            :labels (into [:fn :result] labels)})
          (ex/exception-counter
            :fn/exceptions-total
            {:description "the total number and type of exceptions for the observed function."
-            :labels [:fn]}))
+            :labels (into [:fn] labels)}))
        (reduce prometheus/register registry)))
 
 ;; ## Constructor
@@ -103,7 +105,16 @@
             exceptions?
             duration?
             last-failure?
-            run-count?]
+            run-count?
+            labels]
      :or {fn-name (subs (str fn-var) 2)}
      :as options}]
    (instrument!* registry fn-name fn-var options)))
+
+(defn instrument-namespace!
+  ([registry namespace] (instrument-namespace! registry namespace {}))
+  ([registry namespace options]
+   (->> namespace
+        ns-publics vals
+        (filter #(fn? (var-get %)))
+        (map #(instrument! registry % options)))))

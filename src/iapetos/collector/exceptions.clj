@@ -43,6 +43,8 @@
     (collector/instantiate counter registry-options))
   (metric [this]
     (collector/metric counter))
+  (metric-id [this]
+    (collector/metric-id counter))
   (label-instance [_ instance values]
     (->ExceptionCounterChild counter instance values)))
 

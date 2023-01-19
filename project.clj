@@ -1,18 +1,25 @@
-(defproject clj-commons/iapetos "0.1.9"
+(defproject clj-commons/iapetos (or (System/getenv "PROJECT_VERSION") "0.1.12")
   :description "A Clojure Prometheus Client"
   :url "https://github.com/clj-commons/iapetos"
   :license {:name "MIT License"
             :url "https://opensource.org/licenses/MIT"
             :year 2019
             :key "mit"}
-  :dependencies [[org.clojure/clojure "1.10.0" :scope "provided"]
-                 [io.prometheus/simpleclient "0.6.0"]
-                 [io.prometheus/simpleclient_common "0.6.0"]
-                 [io.prometheus/simpleclient_pushgateway "0.6.0"]
-                 [io.prometheus/simpleclient_hotspot "0.6.0" :scope "provided"]]
+  :deploy-repositories [["clojars" {:url "https://repo.clojars.org"
+                                    :username :env/clojars_username
+                                    :password :env/clojars_password
+                                    :sign-releases true}]]
+
+  :dependencies [[org.clojure/clojure "1.10.3" :scope "provided"]
+                 [io.prometheus/simpleclient "0.12.0"]
+                 [io.prometheus/simpleclient_common "0.12.0"]
+                 [io.prometheus/simpleclient_pushgateway "0.12.0"]
+                 [io.prometheus/simpleclient_hotspot "0.12.0" :scope "provided"]]
   :profiles {:dev
-             {:dependencies [[org.clojure/test.check "0.9.0"]
-                             [aleph "0.4.6"]]
+             {:dependencies [[org.clojure/test.check "1.1.0"]
+                             [aleph "0.4.6"]
+                             [jmh-clojure "0.4.1"]]
+              :source-paths ["dev"]
               :global-vars {*warn-on-reflection* true}}
              :codox
              {:plugins [[lein-codox "0.10.0"]]
@@ -27,8 +34,9 @@
                                    #"^iapetos\.collector\..+"]}}
              :coverage
              {:plugins [[lein-cloverage "1.0.9"]]
-              :dependencies [[org.clojure/tools.reader "1.2.2"]
-                             [riddley "0.1.15"]]}}
+              :pedantic? :warn
+              :dependencies [[org.clojure/tools.reader "1.3.5"]
+                             [riddley "0.2.0"]]}}
   :aliases {"codox" ["with-profile" "+codox" "codox"]
             "codecov" ["with-profile" "+coverage" "cloverage" "--codecov"]}
   :pedantic? :abort)
