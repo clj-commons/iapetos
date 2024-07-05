@@ -30,24 +30,24 @@
 (defn- make-latency-collector
   [labels buckets]
   (prometheus/histogram
-    :http/request-latency-seconds
-    {:description "the response latency for HTTP requests."
-     :labels (concat [:method :status :statusClass :path] labels)
-     :buckets buckets}))
+   :http/request-latency-seconds
+   {:description "the response latency for HTTP requests."
+    :labels (concat [:method :status :statusClass :path] labels)
+    :buckets buckets}))
 
 (defn- make-count-collector
   [labels]
   (prometheus/counter
-    :http/requests-total
-    {:description "the total number of HTTP requests processed."
-     :labels (concat [:method :status :statusClass :path] labels)}))
+   :http/requests-total
+   {:description "the total number of HTTP requests processed."
+    :labels (concat [:method :status :statusClass :path] labels)}))
 
 (defn- make-exception-collector
   [labels]
   (ex/exception-counter
-    :http/exceptions-total
-    {:description "the total number of exceptions encountered during HTTP processing."
-     :labels (concat [:method :path] labels)}))
+   :http/exceptions-total
+   {:description "the total number of exceptions encountered during HTTP processing."
+    :labels (concat [:method :path] labels)}))
 
 (defn initialize
   "Initialize all collectors for Ring handler instrumentation. This includes:
@@ -62,10 +62,10 @@
    & [{:keys [latency-histogram-buckets labels]
        :or {latency-histogram-buckets [0.001 0.005 0.01 0.02 0.05 0.1 0.2 0.3 0.5 0.75 1 5]}}]]
   (prometheus/register
-    registry
-    (make-latency-collector labels latency-histogram-buckets)
-    (make-count-collector labels)
-    (make-exception-collector labels)))
+   registry
+   (make-latency-collector labels latency-histogram-buckets)
+   (make-count-collector labels)
+   (make-exception-collector labels)))
 
 ;; ## Response
 
@@ -110,9 +110,9 @@
 (defn- record-metrics!
   [{:keys [registry] :as options} delta request response]
   (let [labels           (merge
-                           {:status      (status response)
-                            :statusClass (status-class response)}
-                           (labels-for options request response))
+                          {:status      (status response)
+                           :statusClass (status-class response)}
+                          (labels-for options request response))
         delta-in-seconds (/ delta 1e9)]
     (-> registry
         (prometheus/inc     :http/requests-total labels)
@@ -129,16 +129,66 @@
     (f)))
 
 (defn- run-instrumented
-  [{:keys [handler exception-status] :as options} request]
-  (ex/with-exceptions (exception-counter-for options request)
-    (let [start-time (System/nanoTime)
-          response   (safe exception-status #(handler request))
-          delta      (- (System/nanoTime) start-time)]
-      (->> (ensure-response-map response exception-status)
-           (record-metrics! options delta request))
-      (if-not (exception? response)
-        response
-        (throw response)))))
+  ([{:keys [handler exception-status] :as options} request]
+   (ex/with-exceptions (exception-counter-for options request)
+     (let [start-time (System/nanoTime)
+           response   (safe exception-status #(handler request))
+           delta      (- (System/nanoTime) start-time)]
+       (->> exception-status
+            (ensure-response-map response)
+            (record-metrics! options delta request))
+       (if-not (exception? response)
+         response
+         (throw response)))))
+
+  ([{:keys [handler exception-status] :as options} request respond raise]
+   (let [start-time (System/nanoTime)
+         ex-counter (exception-counter-for options request)
+         respond-fn #(let [delta (- (System/nanoTime) start-time)
+                           _     (->> exception-status
+                                      (ensure-response-map %)
+                                      (record-metrics! options delta request))]
+                       (respond %))
+         raise-fn   #(let [delta (- (System/nanoTime) start-time)]
+                       (when exception-status
+                         (->> exception-status
+                              (ensure-response-map %)
+                              (record-metrics! options delta request)))
+                       (ex/record-exception! ex-counter %)
+                       (raise %))]
+     (try
+       (handler request respond-fn raise-fn)
+       (catch Throwable t
+         (ex/record-exception! ex-counter t)
+         (raise t))))))
+
+(defn- run-expose
+  ([{:keys [path on-request registry handler] :as options}
+    {:keys [request-method uri] :as request}]
+   (if (= uri path)
+     (if (= request-method :get)
+       (do
+         (on-request registry)
+         (metrics-response registry))
+       {:status 405})
+     (handler request)))
+
+  ([{:keys [path on-request registry handler] :as options}
+    {:keys [request-method uri] :as request}
+    respond
+    raise]
+   (if (= uri path)
+     (if (= request-method :get)
+       (do
+         (on-request registry)
+         (respond (metrics-response registry)))
+       (respond {:status 405}))
+     (handler request respond raise))))
+
+(defn ring-fn [f options]
+  (fn
+    ([request] (f options request))
+    ([request respond raise] (f options request respond raise))))
 
 (defn wrap-instrumentation
   "Wrap the given Ring handler to write metrics to the given registry:
@@ -162,15 +212,15 @@
    [[initialize]]."
   [handler registry
    & [{:keys [path-fn label-fn]
-       :or {path-fn  :uri
-            label-fn (constantly {})}
-       :as options}]]
+       :or   {path-fn  :uri
+              label-fn (constantly {})}
+       :as   options}]]
   (let [options (assoc options
                        :path-fn  path-fn
                        :label-fn label-fn
                        :registry registry
                        :handler  handler)]
-    #(run-instrumented options %)))
+    (ring-fn run-instrumented options)))
 
 ;; ### Metrics Endpoint
 
@@ -182,16 +232,15 @@
    the Prometheus scraper as a trigger for metrics collection."
   [handler registry
    & [{:keys [path on-request]
-       :or {path       "/metrics"
-            on-request identity}}]]
-  (fn [{:keys [request-method uri] :as request}]
-    (if (= uri path)
-      (if (= request-method :get)
-        (do
-          (on-request registry)
-          (metrics-response registry))
-        {:status 405})
-      (handler request))))
+       :or   {path       "/metrics"
+              on-request identity}
+       :as options}]]
+  (let [options (assoc options
+                       :path path
+                       :on-request on-request
+                       :registry registry
+                       :handler  handler)]
+    (ring-fn run-expose options)))
 
 ;; ### Compound Middleware
 
