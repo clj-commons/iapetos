@@ -31,15 +31,37 @@
   [labels]
   (map metric/dasherize labels))
 
-(defn- set-labels
-  "Attach labels to the given `SimpleCollector` instance."
-  [^SimpleCollector instance labels values]
-  (let [label->value (->> (for [[k v] values]
-                            [(-> k metric/dasherize) v])
-                          (into {})
-                          (comp str))
-        ordered-labels (->> labels (map label->value) (into-array String))]
-    (.labels instance ordered-labels)))
+(defn- dasherized-values-map
+  "Return values map with keys dasherized."
+  [dasherize values]
+  (persistent!
+   (reduce-kv (fn [m k v]
+                (assoc! m (dasherize k) v))
+              (transient {})
+              values)))
+
+(defn- instance-labeler
+  "Return labeler fn that will attach labels to the given
+  `SimpleCollector` instance in the correct order while attempting to
+  resolve the label value as efficiently as possible. The labeler will
+  attempt to resolve the label value in this order:
+
+    1. SimpleCollectorImpl ctor label appears in `values`
+    2. SimpleCollectorImpl dasherized label appears in `values`
+    3. compute dasherized observed label lookup from `values` and resolve"
+  [ctor-labels]
+  (let [^objects instance-labels (make-array String (count ctor-labels))
+        ctor-labels (vec ctor-labels)
+        dasherize (memoize metric/dasherize)]
+    (fn set-labels
+      [^SimpleCollector instance labels values]
+      (let [dasherized-values (delay (dasherized-values-map dasherize values))
+            labels (vec labels)]
+        (.labels instance
+                 (amap instance-labels idx _ret
+                       (str (or (get values (nth ctor-labels idx))
+                                (get values (nth labels idx))
+                                (get @dasherized-values (nth labels idx))))))))))
 
 ;; ## Record
 
@@ -61,6 +83,7 @@
                                 description
                                 subsystem
                                 labels
+                                set-labels
                                 builder-constructor
                                 lazy?]
   Collector
@@ -103,6 +126,7 @@
      :description         description
      :subsystem           subsystem
      :labels              (label-names labels)
+     :set-labels          (instance-labeler labels)
      :builder-constructor builder-constructor
      :lazy?               lazy?}))
 

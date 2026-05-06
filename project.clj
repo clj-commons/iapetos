@@ -18,7 +18,8 @@
   :profiles {:dev
              {:dependencies [[org.clojure/test.check "1.1.0"]
                              [aleph "0.4.6"]
-                             [jmh-clojure "0.4.1"]]
+                             [jmh-clojure "0.4.1"]
+                             [tools.profiler/async-profiler "4.3"]]
               :source-paths ["dev"]
               :global-vars {*warn-on-reflection* true}}
              :codox
