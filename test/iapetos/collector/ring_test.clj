@@ -1,5 +1,6 @@
 (ns iapetos.collector.ring-test
-  (:require [clojure.test :refer :all]
+  (:require [clojure.string :as string]
+            [clojure.test :refer :all]
             [clojure.test.check
              [generators :as gen]
              [properties :as prop]
@@ -196,6 +197,36 @@
                       :status      "200"
                       :statusClass "2XX"
                       :method      "GET"
+                      :path        "/"}]
+     (and (zero? (prometheus/value (registry :http/requests-total labels)))
+          (= 200 (:status (response-fn handler request)))
+          (= 1.0 (prometheus/value (registry :http/requests-total labels)))))))
+
+(defspec t-request-method-normalization-labels 10
+  (prop/for-all
+   [registry-fn         (g/registry-fn ring/initialize)
+    [handler-fn async?] (gen/elements [[#(constantly %) false]
+                                       [#(fn [_ respond _] (deliver respond %)) true]])
+    raw-request-method  (gen/elements [:get :post :nonsense :whatever :options :custom])
+    wrap                (gen/elements [ring/wrap-metrics ring/wrap-instrumentation])]
+   (let [method-str  (if (contains? #{:get :post :options :custom} raw-request-method)
+                       (-> raw-request-method name string/upper-case)
+                       "OTHER")
+         registry    (registry-fn)
+         response-fn (if async? async-response sync-response)
+         response    {:status       200}
+         request     {:request-method raw-request-method
+                      :uri            "/"}
+         handler     (-> (handler-fn response)
+                         (wrap
+                          registry
+                          {:request-method-fn (fn [x]
+                                                (if (= x :custom)
+                                                  x
+                                                  (ring/default-request-method-fn x)))}))
+         labels      {:status      "200"
+                      :statusClass "2XX"
+                      :method      method-str
                       :path        "/"}]
      (and (zero? (prometheus/value (registry :http/requests-total labels)))
           (= 200 (:status (response-fn handler request)))

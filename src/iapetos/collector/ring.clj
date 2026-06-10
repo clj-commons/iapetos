@@ -102,10 +102,20 @@
 (defn- labels-for
   ([options request]
    (labels-for options request nil))
-  ([{:keys [label-fn path-fn]} {:keys [request-method] :as request} response]
+  ([{:keys [label-fn path-fn request-method-fn]} {:keys [request-method] :as request} response]
    (merge {:path   (path-fn request)
-           :method (-> request-method name string/upper-case)}
+           :method (-> request-method request-method-fn name string/upper-case)}
           (label-fn request response))))
+
+(def allowed-request-methods
+  "The more or less standard request methods which are allowed by default.
+   Anything else gets mapped to `:other`, to ensure bounded label creation."
+  #{:get :head :post :put :delete :patch :options})
+
+(defn default-request-method-fn [method]
+  (if (contains? allowed-request-methods method)
+    method
+    :other))
 
 (defn- record-metrics!
   [{:keys [registry] :as options} delta request response]
@@ -204,6 +214,11 @@
    the `:path` label) if you have any kind of ID in your URIs – since otherwise
    there will be one timeseries created for each observed ID.
 
+   Similarly, methods are limited to a fixed set (see allowed-request-methods),
+   anything else gets lumped into `\"OTHER\"` to avoid creating an unbounded
+   number of labels from user input.  If you want to support different methods,
+   implement `request-method-fn`.
+
    For additional labels in the metrics use `label-fn`, which takes the request
    as a first argument and the response as the second argument.
 
@@ -211,11 +226,13 @@
    are ever used, you need to provide the list of `:labels` when calling
    [[initialize]]."
   [handler registry
-   & [{:keys [path-fn label-fn]
+   & [{:keys [path-fn label-fn request-method-fn]
        :or   {path-fn  :uri
-              label-fn (constantly {})}
+              label-fn (constantly {})
+              request-method-fn default-request-method-fn}
        :as   options}]]
   (let [options (assoc options
+                       :request-method-fn request-method-fn
                        :path-fn  path-fn
                        :label-fn label-fn
                        :registry registry
@@ -254,6 +271,11 @@
    the `:path` label) if you have any kind of ID in your URIs – since otherwise
    there will be one timeseries created for each observed ID.
 
+   Similarly, methods are limited to a fixed set (see allowed-request-methods),
+   anything else gets lumped into `\"OTHER\"` to avoid creating an unbounded 
+   number of labels from user input.  If you want to support different methods,
+   implement `request-method-fn`.
+
    For additional labels in the metrics use `label-fn`, which takes the request
    as a first argument and the response as the second argument.
 
@@ -264,6 +286,7 @@
    & [{:keys [path path-fn on-request label-fn]
        :or {path     "/metrics"
             path-fn  :uri
+            request-method-fn default-request-method-fn
             label-fn (constantly {})}
        :as options}]]
   (-> handler
