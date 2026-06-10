@@ -169,6 +169,11 @@ registry with a label/value-map:
 ;; ...
 ```
 
+__Note:__ Ensure that the label values are bounded, i.e. not generated
+from uncontrolled user input.  Because label values get remembered
+forever, they will consume memory and can cause out of memory
+situations.
+
 ### Subsystems <a name="subsystems"></a>
 
 In addition to namespaces, you can create collector declarations belonging to a
