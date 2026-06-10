@@ -15,8 +15,8 @@
 
 (def metric-string
   (gen/let [first-char gen/char-alpha
-            last-char  gen/char-alpha-numeric
-            rest-chars gen/string-alpha-numeric]
+            last-char  gen/char-alphanumeric
+            rest-chars gen/string-alphanumeric]
     (gen/return
       (str
         (apply str first-char rest-chars)
@@ -53,7 +53,7 @@
 
 (def valid-name
   (gen/let [first-char gen/char-alpha
-            parts      (gen/vector (gen/not-empty gen/string-alpha-numeric))]
+            parts      (gen/vector (gen/not-empty gen/string-alphanumeric))]
     (apply str first-char (string/join "_" parts))))
 
 ;; ## Registry

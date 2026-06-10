@@ -46,7 +46,7 @@
         :exception? true})])))
 
 (def gen-request
-  (gen/let [path   (gen/fmap #(str "/" %) gen/string-alpha-numeric)
+  (gen/let [path   (gen/fmap #(str "/" %) gen/string-alphanumeric)
             method (gen/elements [:get :post :put :delete :patch :options :head])]
     (gen/return
      {:request-method method
@@ -129,7 +129,7 @@
 (defspec t-wrap-metrics-expose 50
   (prop/for-all
    [registry-fn         (g/registry-fn ring/initialize)
-    path                (gen/fmap #(str "/" %) gen/string-alpha-numeric)
+    path                (gen/fmap #(str "/" %) gen/string-alphanumeric)
     [handler-fn async?] (gen/elements [[(constantly {:status 200}) false]
                                        [(fn [_ respond _] (deliver respond {:status 200})) true]])
     wrap                (gen/elements [ring/wrap-metrics-expose ring/wrap-metrics])]
@@ -151,7 +151,7 @@
 (defspec t-wrap-metrics-expose-with-on-request-hook 50
   (prop/for-all
    [registry-fn         (g/registry-fn ring/initialize)
-    path                (gen/fmap #(str "/" %) gen/string-alpha-numeric)
+    path                (gen/fmap #(str "/" %) gen/string-alphanumeric)
     [handler-fn async?] (gen/elements [[(constantly {:status 200}) false]
                                        [(fn [_ respond _] (deliver respond {:status 200})) true]])
     wrap                (gen/elements [ring/wrap-metrics-expose ring/wrap-metrics])]
@@ -174,8 +174,8 @@
                          #(ring/initialize % {:labels [:extraReq :extraResp]}))
     [handler-fn async?] (gen/elements [[#(constantly %) false]
                                        [#(fn [_ respond _] (deliver respond %)) true]])
-    request-label       (gen/not-empty gen/string-alpha-numeric)
-    response-label      (gen/not-empty gen/string-alpha-numeric)
+    request-label       (gen/not-empty gen/string-alphanumeric)
+    response-label      (gen/not-empty gen/string-alphanumeric)
     wrap                (gen/elements [ring/wrap-metrics ring/wrap-instrumentation])]
    (let [registry    (registry-fn)
          response-fn (if async? async-response sync-response)
