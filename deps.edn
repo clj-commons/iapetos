@@ -2,4 +2,9 @@
         io.prometheus/simpleclient {:mvn/version "0.12.0"}
         io.prometheus/simpleclient_common {:mvn/version "0.12.0"}
         io.prometheus/simpleclient_pushgateway {:mvn/version "0.12.0"}
-        io.prometheus/simpleclient_hotspot {:mvn/version "0.12.0"}}}
+        io.prometheus/simpleclient_hotspot {:mvn/version "0.12.0"}}
+
+ :aliases {:test {:extra-paths ["test"]
+                  :extra-deps {org.clojure/test.check {:mvn/version "1.1.0"}
+                               aleph/aleph {:mvn/version "0.4.6"}
+                               jmh-clojure/jmh-clojure {:mvn/version "0.4.1"}}}}}
