@@ -50,14 +50,14 @@
 ;; ## Generators
 
 (def gen-push-spec-grouping-key
-  (gen/map gen/string-alpha-numeric gen/string-alpha-numeric))
+  (gen/map gen/string-alphanumeric gen/string-alphanumeric))
 
 (def gen-push-spec
   (gen/let [registry-fn (gen/one-of
                           [(gen/return (constantly nil))
                            (g/registry-fn)])]
     (gen/hash-map
-      :job          gen/string-alpha-numeric
+      :job          gen/string-alphanumeric
       :registry     (gen/return (registry-fn))
       :push-gateway (gen/return push-gateway)
       :grouping-key gen-push-spec-grouping-key)))
