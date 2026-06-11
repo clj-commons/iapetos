@@ -1,9 +1,6 @@
 (ns iapetos.collector.fn
-  (:require [iapetos.collector :as collector]
-            [iapetos.core :as prometheus]
-            [iapetos.metric :as metric]
-            [iapetos.collector.exceptions :as ex])
-  (:import [io.prometheus.client CollectorRegistry]))
+  (:require [iapetos.core :as prometheus]
+            [iapetos.collector.exceptions :as ex]))
 
 ;; ## Instrumentation
 

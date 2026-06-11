@@ -22,7 +22,7 @@
 (defn- parse-subsystems
   [registry]
   (->> (export/text-format registry)
-       (re-seq #"TYPE app_(.+)_runs_total ")
+       (re-seq #"TYPE app_(.+)_runs(?:_total)? ")
        (keep second)
        (sort)))
 
@@ -45,7 +45,7 @@
         (-> registry
             (prometheus/subsystem subsystem)
             (prometheus/register
-              (metric-fn :app/runs-total))))
+              (metric-fn :app/runs))))
       (= subsystems (parse-subsystems registry)))))
 
 (defspec t-explicit-subsystem 25
@@ -55,7 +55,7 @@
      metric-fn      gen-metric-fn]
     (let [registry (-> (registry-fn)
                        (prometheus/register
-                         (metric-fn :app/runs-total {:subsystem subsystem-name})))]
+                         (metric-fn :app/runs {:subsystem subsystem-name})))]
       (= [subsystem-name] (parse-subsystems registry)))))
 
 (defspec t-nested-subsystems 25
@@ -66,7 +66,7 @@
     (let [registry (registry-fn)
           subsystem-registry (-> (reduce prometheus/subsystem registry subsystem-names)
                                  (prometheus/register
-                                   (metric-fn :app/runs-total)))
+                                   (metric-fn :app/runs)))
           expected-name (string/join "_" subsystem-names)]
       (= [expected-name] (parse-subsystems registry)))))
 
@@ -79,7 +79,7 @@
          (-> (registry-fn)
              (prometheus/subsystem subsystem-name)
              (prometheus/register
-               (metric-fn :app/runs-total {:subsystem (str subsystem-name "x")})))
+               (metric-fn :app/runs {:subsystem (str subsystem-name "x")})))
          (catch IllegalArgumentException _
            ::error))
        ::error)))

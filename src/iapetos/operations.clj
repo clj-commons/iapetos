@@ -1,12 +1,28 @@
 (ns iapetos.operations
-  (:import [io.prometheus.client
-            Counter$Child
-            Histogram$Child
-            Histogram$Timer
-            Gauge$Child
-            Gauge$Timer
-            Summary$Child
-            Summary$Timer]))
+  (:require [iapetos.collector :as collector])
+  (:import [clojure.lang MapEntry]
+           [iapetos.collector LabeledDistributionCollector]
+           [io.prometheus.metrics.core.datapoints
+            DistributionDataPoint Timer
+            TimerApi]
+           [io.prometheus.metrics.core.metrics
+            Counter$DataPoint
+            Gauge$DataPoint StatefulMetric]
+           [io.prometheus.metrics.model.snapshots
+            ClassicHistogramBucket
+            ClassicHistogramBuckets
+            DataPointSnapshot
+            DistributionDataPointSnapshot
+            HistogramSnapshot$HistogramDataPointSnapshot
+            Labels
+            MetricSnapshot
+            Quantile
+            Quantiles
+            SummarySnapshot$SummaryDataPointSnapshot]))
+
+(defn- start-timer* [^TimerApi datapoint]
+  (let [^Timer t (.startTimer ^TimerApi datapoint)]
+    #(.observeDuration t)))
 
 ;; ## Operation Protocols
 
@@ -41,81 +57,92 @@
 
 ;; ## Counter
 
-(extend-type Counter$Child
+(extend-type Counter$DataPoint
   ReadableCollector
   (read-value [this]
-    (.get ^Counter$Child this))
+    (.get ^Counter$DataPoint this))
   IncrementableCollector
   (increment* [this amount]
-    (.inc ^Counter$Child this (double amount))))
+    (.inc ^Counter$DataPoint this (double amount))))
 
 ;; ## Gauge
 
-(extend-type Gauge$Child
+(extend-type Gauge$DataPoint
   ReadableCollector
   (read-value [this]
-    (.get ^Gauge$Child this))
+    (.get ^Gauge$DataPoint this))
 
   IncrementableCollector
   (increment* [this amount]
-    (.inc ^Gauge$Child this (double amount)))
+    (.inc ^Gauge$DataPoint this (double amount)))
 
   DecrementableCollector
   (decrement* [this amount]
-    (.dec ^Gauge$Child this (double amount)))
+    (.dec ^Gauge$DataPoint this (double amount)))
 
   ObservableCollector
   (observe [this amount]
-    (.set ^Gauge$Child this (double amount)))
+    (.set ^Gauge$DataPoint this (double amount)))
 
   SettableCollector
   (set-value [this value]
-    (.set ^Gauge$Child this (double value)))
+    (.set ^Gauge$DataPoint this (double value)))
   (set-value-to-current-time [this]
-    (.setToCurrentTime ^Gauge$Child this))
+    (let [unix-time (/ (System/currentTimeMillis) 1000.0)]
+      (.set ^Gauge$DataPoint this unix-time)))
 
   TimeableCollector
   (start-timer [this]
-    (let [^Gauge$Timer t (.startTimer ^Gauge$Child this)]
-      #(.setDuration t))))
+    (start-timer* this)))
 
-;; ## Histogram
+;; ## Histogram and Summary
 
-(extend-type Histogram$Child
+(defn- get-latest-distribution-snapshot [{reg-labels :labels} instance labels]
+  (let [snapshot   ^MetricSnapshot (.collect ^StatefulMetric instance)
+        reg-labels ^"[Ljava.lang.String;" (into-array String reg-labels)
+        labels-obj ^Labels (Labels/of reg-labels (collector/ordered-labels reg-labels labels))]
+    (loop [datapoints (.getDataPoints snapshot)]
+      (when-let [curr-datapoint ^DataPointSnapshot (first datapoints)]
+        (if (= (.getLabels curr-datapoint) labels-obj)
+          curr-datapoint
+          (recur (rest datapoints)))))))
+
+(defn- buckets->vec
+  [^HistogramSnapshot$HistogramDataPointSnapshot snapshot]
+  (let [buckets     ^ClassicHistogramBuckets (.getClassicBuckets snapshot)
+        bucket-vals (->> buckets (.iterator) (iterator-seq)
+                         (map #(.getCount ^ClassicHistogramBucket %)))]
+    (loop [bs   bucket-vals
+           acc 0.0
+           bf  []]
+      (if-let [b (first bs)]
+        (let [nb (+ b acc)]
+          (recur (rest bs)
+                 nb
+                 (conj bf nb)))
+        bf))))
+
+(defn- quantiles->map
+  [^SummarySnapshot$SummaryDataPointSnapshot snapshot]
+  (let [quantiles ^Quantiles (.getQuantiles snapshot)]
+    (->> quantiles (.iterator) (iterator-seq)
+         (map (fn [^Quantile q] (MapEntry. (.getQuantile q) (.getValue q))))
+         (into {}))))
+
+(extend-type LabeledDistributionCollector
   ReadableCollector
-  (read-value [this]
-    (let [^io.prometheus.client.Histogram$Child$Value value
-          (.get ^Histogram$Child this)
-          buckets (vec (.-buckets value))]
-      {:sum     (.-sum value)
-       :count   (last buckets)
-       :buckets buckets}))
+  (read-value [{:keys [collector instance labels]}]
+    (when-let [snapshot ^DistributionDataPointSnapshot (get-latest-distribution-snapshot collector instance labels)]
+      (let [type (:type collector)]
+        (cond-> {:count (double (.getCount snapshot))
+                 :sum   (.getSum snapshot)}
+                (= type :histogram) (assoc :buckets (buckets->vec snapshot))
+                (= type :summary) (assoc :quantiles (quantiles->map snapshot))))))
 
   ObservableCollector
   (observe [this amount]
-    (.observe ^Histogram$Child this (double amount)))
+    (.observe ^DistributionDataPoint (.-datapoint this) (double amount)))
 
   TimeableCollector
   (start-timer [this]
-    (let [^Histogram$Timer t (.startTimer ^Histogram$Child this)]
-      #(.observeDuration t))))
-
-;; ## Summary
-
-(extend-type Summary$Child
-  ReadableCollector
-  (read-value [this]
-    (let [^io.prometheus.client.Summary$Child$Value value
-          (.get ^Summary$Child this)]
-      {:sum       (.-sum value)
-       :count     (.-count value)
-       :quantiles (into {} (.-quantiles value))}))
-
-  ObservableCollector
-  (observe [this amount]
-    (.observe ^Summary$Child this (double amount)))
-
-  TimeableCollector
-  (start-timer [this]
-    (let [^Summary$Timer t (.startTimer ^Summary$Child this)]
-      #(.observeDuration t))))
+    (start-timer* (.-datapoint this))))

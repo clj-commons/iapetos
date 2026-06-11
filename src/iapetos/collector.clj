@@ -1,10 +1,8 @@
 (ns iapetos.collector
-  (:require [iapetos.metric :as metric])
-  (:import [io.prometheus.client
-            Collector$MetricFamilySamples
-            CollectorRegistry
-            SimpleCollector
-            SimpleCollector$Builder]))
+  (:require [clojure.string :as string]
+            [iapetos.metric :as metric])
+  (:import [io.prometheus.metrics.core.datapoints DistributionDataPoint]
+           [io.prometheus.metrics.core.metrics MetricWithFixedMetadata MetricWithFixedMetadata$Builder StatefulMetric]))
 
 ;; ## Protocol
 
@@ -31,15 +29,20 @@
   [labels]
   (map metric/dasherize labels))
 
-(defn- set-labels
-  "Attach labels to the given `SimpleCollector` instance."
-  [^SimpleCollector instance labels values]
+(defn ordered-labels
+  ^"[Ljava.lang.String;"
+  [labels values]
   (let [label->value (->> (for [[k v] values]
                             [(-> k metric/dasherize) v])
                           (into {})
-                          (comp str))
-        ordered-labels (->> labels (map label->value) (into-array String))]
-    (.labels instance ordered-labels)))
+                          (comp str))]
+    (->> labels (map label->value) (into-array String))))
+
+(defn- set-labels
+  "Attach labels to the given `StatefulMetric` instance."
+  [^StatefulMetric instance labels values]
+  (let [ordered (ordered-labels labels values)]
+    (.labelValues instance ordered)))
 
 ;; ## Record
 
@@ -54,6 +57,8 @@
           (pr-str subsystem)))))
   (or subsystem subsystem'))
 
+(defrecord LabeledDistributionCollector [collector ^StatefulMetric instance ^DistributionDataPoint datapoint labels])
+
 (defrecord SimpleCollectorImpl [type
                                 namespace
                                 name
@@ -65,22 +70,30 @@
                                 lazy?]
   Collector
   (instantiate [this registry-options]
-    (let [subsystem (check-subsystem this registry-options)]
-      (-> ^SimpleCollector$Builder
+    (assert (or (= type :counter)
+                (not (string/ends-with? name "total")))
+            (format "name for metrics of type %s must not end with 'total' (metric: %s)"
+                    (clojure.core/name type) (keyword namespace name)))
+    (let [subsystem (check-subsystem this registry-options)
+          name      (cond->> name
+                             subsystem (str subsystem "_")
+                             namespace (str namespace "_"))]
+      (-> ^MetricWithFixedMetadata$Builder
           (builder-constructor)
           (.name name)
-          (.namespace namespace)
           (.help description)
           (.labelNames (label-array labels))
-          (cond-> subsystem (.subsystem subsystem))
-          (.create))))
+          (.build))))
   (metric [_]
     {:name      name
      :namespace namespace})
   (metric-id [_]
     metric-id)
-  (label-instance [_ instance values]
-    (set-labels instance labels values)))
+  (label-instance [this instance values]
+    (let [labeled (set-labels instance labels values)]
+      (case type
+        (:histogram :summary) (->LabeledDistributionCollector this instance labeled values)
+        labeled))))
 
 (defn make-simple-collector
   "Create a new simple collector representation to be instantiated and
@@ -109,10 +122,8 @@
 ;; ## Implementation for Raw Collectors
 
 (defn- raw-metric
-  [^io.prometheus.client.Collector v]
-  (if-let [n (some-> (.collect v)
-                     ^Collector$MetricFamilySamples (first)
-                     (.name))]
+  [^MetricWithFixedMetadata v]
+  (if-let [n (.getPrometheusName v)]
     (let [[a b] (.split n "_" 2)]
       (if b
         {:name b, :namespace a}
@@ -121,7 +132,7 @@
      :namespace "raw"}))
 
 (extend-protocol Collector
-  io.prometheus.client.Collector
+  StatefulMetric
   (instantiate [this _]
     this)
   (metric [this]

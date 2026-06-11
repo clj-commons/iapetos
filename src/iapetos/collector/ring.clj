@@ -3,7 +3,7 @@
             [iapetos.export :as export]
             [iapetos.collector.exceptions :as ex]
             [clojure.string :as string])
-  (:import [io.prometheus.client.exporter.common TextFormat]))
+  (:import [io.prometheus.metrics.expositionformats PrometheusTextFormatWriter]))
 
 ;; ## Note
 ;;
@@ -74,7 +74,7 @@
    using the text format (version 0.0.4)."
   [registry]
   {:status 200
-   :headers {"Content-Type" TextFormat/CONTENT_TYPE_004}
+   :headers {"Content-Type" PrometheusTextFormatWriter/CONTENT_TYPE}
    :body    (export/text-format registry)})
 
 ;; ## Middlewares

@@ -1,14 +1,22 @@
 (ns iapetos.collector.jvm
   (:require [iapetos.collector :as collector]
             [iapetos.core :as prometheus])
-  (:import [io.prometheus.client
-            Collector
-            CollectorRegistry]
-           [io.prometheus.client.hotspot
-            StandardExports
-            MemoryPoolsExports
-            GarbageCollectorExports
-            ThreadExports]))
+  (:import [io.prometheus.metrics.instrumentation.jvm
+            JvmGarbageCollectorMetrics
+            JvmMemoryMetrics
+            JvmThreadsMetrics
+            ProcessMetrics]))
+
+(defn jvm-collector [metric collector]
+  (reify collector/Collector
+    (instantiate [_ _]
+      collector)
+    (metric [_]
+      metric)
+    (metric-id [_]
+      metric)
+    (label-instance [_ instance _]
+      instance)))
 
 ;; ## Collectors
 
@@ -16,37 +24,37 @@
   "A set of standard collectors for the JVM.
    Can be attached to a iapetos registry using `iapetos.core/register`."
   []
-  (collector/named
+  (jvm-collector
     {:namespace "iapetos_internal"
      :name      "jvm_standard"}
-    (StandardExports.)))
+   (ProcessMetrics/builder)))
 
 (defn gc
   "A set of GC metric collectors for the JVM.
    Can be attached to a iapetos registry using `iapetos.core/register`."
   []
-  (collector/named
+  (jvm-collector
     {:namespace "iapetos_internal"
      :name      "jvm_gc"}
-    (GarbageCollectorExports.)))
+   (JvmGarbageCollectorMetrics/builder)))
 
 (defn memory-pools
   "A set of memory usage metric collectors for the JVM.
    Can be attached to a iapetos registry using `iapetos.core/register`."
   []
-  (collector/named
+  (jvm-collector
     {:namespace "iapetos_internal"
      :name      "jvm_memory_pools"}
-    (MemoryPoolsExports.)))
+   (JvmMemoryMetrics/builder)))
 
 (defn threads
   "A set of thread usage metric collectors for the JVM.
    Can be attached to a iapetos registry using `iapetos.core/register`."
   []
-  (collector/named
+  (jvm-collector
     {:namespace "iapetos_internal"
      :name      "jvm_threads"}
-    (ThreadExports.)))
+   (JvmThreadsMetrics/builder)))
 
 ;; ## Initialize
 

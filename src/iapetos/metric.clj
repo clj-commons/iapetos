@@ -1,6 +1,5 @@
 (ns iapetos.metric
-  (:require [clojure.string :as string])
-  (:import [io.prometheus.client Collector]))
+  (:require [clojure.string :as string]))
 
 ;; ## Protocol
 
@@ -23,7 +22,8 @@
   (-> ^String (if (keyword? v)
                 (name v)
                 (str v))
-      (Collector/sanitizeMetricName)
+      (string/replace-first #"^[^a-zA-Z_:]" "_")
+      (string/replace #"[^a-zA-Z0-9_:]" "_")
       (string/replace #"__+" "_")
       (string/replace #"(^_+|_+$)" "")
       (assert-valid-name v)))

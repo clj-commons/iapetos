@@ -1,6 +1,5 @@
 (ns iapetos.standalone
-  (:require [iapetos.collector.ring :as ring]
-            [clojure.java.io :as io])
+  (:require [iapetos.collector.ring :as ring])
   (:import [com.sun.net.httpserver
             HttpHandler
             HttpServer

@@ -1,8 +1,8 @@
 (ns iapetos.registry.collectors
-  (:require [iapetos.metric :as metric]
-            [iapetos.registry.utils :as utils]
+  (:require [iapetos.registry.utils :as utils]
             [iapetos.collector :as collector])
-  (:import [io.prometheus.client Collector CollectorRegistry]))
+  (:import [io.prometheus.metrics.core.metrics MetricWithFixedMetadata]
+           [io.prometheus.metrics.model.registry Collector PrometheusRegistry]))
 
 ;; ## Init
 
@@ -17,13 +17,15 @@
 ;; ## Management
 
 (defn- register-collector-delay
-  [^CollectorRegistry registry ^Collector instance]
+  [^PrometheusRegistry registry instance]
   (delay
-    (.register registry instance)
-    instance))
+   (if (instance? Collector instance)
+     (.register registry ^Collector instance)
+     (.register instance registry))
+   instance))
 
 (defn- unregister-collector-delay
-  [^CollectorRegistry registry ^Collector instance]
+  [^PrometheusRegistry registry ^Collector instance]
   (delay
     (.unregister registry instance)
     instance))
@@ -101,3 +103,20 @@
   [collectors metric labels options]
   (some->> (lookup collectors metric options)
            (label-collector labels)))
+
+(defn- summarize [{:keys [collector raw]}]
+  (merge
+   {:name (.getPrometheusName ^MetricWithFixedMetadata raw)}
+   (select-keys collector [:metric-id :type :description :labels])))
+
+(defn registered-metrics
+  [collectors]
+  (flatten (for [namespace (keys collectors)
+                 subsystem (keys (get collectors namespace))]
+             (->> (-> (get collectors namespace)
+                      (get subsystem)
+                      (vals))
+                  (filter #(and (isa? (class (:raw %)) MetricWithFixedMetadata)
+                                (realized? (:register %))
+                                (not (realized? (:unregister %)))))
+                  (map summarize)))))

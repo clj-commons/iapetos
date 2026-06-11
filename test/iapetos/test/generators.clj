@@ -3,7 +3,7 @@
             [iapetos.core :as prometheus]
             [iapetos.export :refer [pushable-collector-registry]]
             [clojure.string :as string])
-  (:import [io.prometheus.client CollectorRegistry]))
+  (:import [io.prometheus.metrics.model.registry PrometheusRegistry]))
 
 ;; ## Metric
 
@@ -71,7 +71,7 @@
     (gen/return
       (fn []
         (let [registry (base-fn registry-name)]
-          (.clear ^CollectorRegistry (iapetos.registry/raw registry))
+          (.clear ^PrometheusRegistry (iapetos.registry/raw registry))
           (reduce
             (fn [r f]
               (f r))

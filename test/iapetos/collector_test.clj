@@ -6,29 +6,28 @@
             [clojure.test :refer :all]
             [iapetos.test.generators :as g]
             [iapetos.collector :as c])
-  (:import [io.prometheus.client
+  (:import [io.prometheus.metrics.core.metrics
             Counter
             Histogram
             Gauge
-            SimpleCollector$Builder
+            MetricWithFixedMetadata$Builder
             Summary]))
 
 (def gen-raw-collector
   (gen/let [builder (gen/elements
-                      [(Counter/build)
-                       (Histogram/build)
-                       (Gauge/build)
-                       (Summary/build)])
+                      [(Counter/builder)
+                       (Histogram/builder)
+                       (Gauge/builder)
+                       (Summary/builder)])
             collector-namespace g/metric-string
             collector-name g/metric-string
             help-string (gen/not-empty gen/string-ascii)]
     (gen/return
-      {:collector           (-> ^SimpleCollector$Builder
-                                 builder
-                                 (.name collector-name)
-                                 (.namespace collector-namespace)
-                                 (.help help-string)
-                                 (.create))
+      {:collector           (-> ^MetricWithFixedMetadata$Builder
+                                builder
+                                (.name (str collector-namespace "_" collector-name))
+                                (.help help-string)
+                                (.build))
        :collector-namespace collector-namespace
        :collector-name      collector-name})))
 
@@ -45,4 +44,4 @@
                UnsupportedOperationException
                (c/label-instance collector collector {:label "value"})))
          (is (= collector
-                (c/label-instance collector collector {}))) )))
+                (c/label-instance collector collector {}))))))

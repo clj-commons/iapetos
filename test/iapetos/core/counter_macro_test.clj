@@ -89,7 +89,7 @@
 (defspec t-with-activity-counter 5
   (prop/for-all
     [registry-fn (g/registry-fn)]
-    (let [metric :app/activity-total
+    (let [metric :app/activities
           registry (-> (registry-fn)
                        (prometheus/register
                          (prometheus/gauge metric)))

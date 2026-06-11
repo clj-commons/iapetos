@@ -4,19 +4,10 @@
             [iapetos.operations :as ops]
             [iapetos.registry :as registry])
   (:refer-clojure :exclude [get inc dec set])
-  (:import [io.prometheus.client
-            CollectorRegistry
-            Counter
-            Counter$Child
-            Histogram
-            Histogram$Child
-            Histogram$Timer
-            Gauge
-            Gauge$Child
-            Gauge$Timer
-            Summary
-            Summary$Builder
-            Summary$Child]))
+  (:import [io.prometheus.metrics.core.metrics Counter
+                                               Gauge
+                                               Histogram
+                                               Summary Summary$Builder]))
 
 ;; ## Registry
 
@@ -94,7 +85,7 @@
   (-> (merge
         {:description description}
         (metric/as-map metric options))
-      (collector/make-simple-collector :counter #(Counter/build))))
+      (collector/make-simple-collector :counter #(Counter/builder))))
 
 (defn gauge
   "Create a new `Gauge` collector:
@@ -109,7 +100,7 @@
   (-> (merge
          {:description description}
          (metric/as-map metric options))
-       (collector/make-simple-collector :gauge #(Gauge/build))))
+      (collector/make-simple-collector :gauge #(Gauge/builder))))
 
 (defn histogram
   "Create a new `Histogram` collector:
@@ -127,8 +118,8 @@
         (metric/as-map metric options))
       (collector/make-simple-collector
         :histogram
-        #(cond-> (Histogram/build)
-           (seq buckets) (.buckets (double-array buckets))))))
+        #(cond-> (Histogram/builder)
+           (seq buckets) (.classicUpperBounds (double-array buckets))))))
 
 (defn- add-quantile [^Summary$Builder builder [quantile error]]
   (.quantile builder quantile error))
@@ -149,7 +140,7 @@
          (metric/as-map metric options))
       (collector/make-simple-collector
        :summary
-       #(reduce add-quantile (Summary/build) quantiles))))
+       #(reduce add-quantile (Summary/builder) quantiles))))
 
 ;; ## Raw Operations
 

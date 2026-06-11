@@ -8,7 +8,7 @@
             [iapetos.export :as export]
             [iapetos.core :as prometheus]
             [aleph.http :as http])
-  (:import [io.prometheus.client.exporter.common TextFormat]))
+  (:import [io.prometheus.metrics.expositionformats PrometheusTextFormatWriter]))
 
 ;; ## Helpers
 
@@ -44,7 +44,7 @@
 (defn- matches-registry?
   [{:keys [request-method headers body] :as x} registry]
   (and (= :post request-method)
-       (= TextFormat/CONTENT_TYPE_004 (get headers "content-type"))
+       (= PrometheusTextFormatWriter/CONTENT_TYPE (get headers "content-type"))
        (= (export/text-format registry) body)))
 
 ;; ## Generators
